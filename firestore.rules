@@ -1,0 +1,294 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //   - theme: string (optional, enum: ["light", "dark"])
+    //   - createdAt: string (optional, ISO 8601)
+    //
+    // Collection: notes
+    // Document ID: noteId
+    // Fields:
+    //   - userId: string (required, owner UID)
+    //   - title: string (required)
+    //   - content: string (required)
+    //   - folder: string (optional)
+    //   - color: string (optional)
+    //   - isPinned: bool (optional)
+    //   - attachedDate: string (optional, ISO 8601)
+    //   - updatedAt: string (required, ISO 8601)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: tasks
+    // Document ID: taskId
+    // Fields:
+    //   - userId: string (required, owner UID)
+    //   - title: string (required)
+    //   - category: string (optional)
+    //   - priority: string (required, enum: ["low", "medium", "high"])
+    //   - dueDate: string (optional, ISO 8601)
+    //   - isCompleted: bool (required)
+    //   - order: int (required)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: reminders
+    // Document ID: reminderId
+    // Fields:
+    //   - userId: string (required, owner UID)
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - type: string (required, enum: ["exam", "assignment", "study", "other"])
+    //   - dateTime: string (required, ISO 8601)
+    //   - repeat: string (optional)
+    //   - color: string (optional)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: translations
+    // Document ID: translationId
+    // Fields:
+    //   - userId: string (required, owner UID)
+    //   - sourceText: string (required)
+    //   - translatedText: string (required)
+    //   - sourceLang: string (required)
+    //   - targetLang: string (required)
+    //   - isFavorite: bool (required)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: focusSessions
+    // Document ID: sessionId
+    // Fields:
+    //   - userId: string (required, owner UID)
+    //   - type: string (required, enum: ["work", "break"])
+    //   - duration: int (required, seconds)
+    //   - startTime: string (required, ISO 8601)
+    //   - endTime: string (optional, ISO 8601)
+    //   - completed: bool (required)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: exams
+    // Document ID: examId
+    // Fields:
+    //   - userId: string (required, owner UID)
+    //   - subject: string (required)
+    //   - dateTime: string (required, ISO 8601)
+    //   - type: string (required, enum: ["Midterm", "Final", "Test", "Quiz", "Assignment", "Other"])
+    //   - description: string (optional)
+    //   - priority: string (required, enum: ["low", "medium", "high"])
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: studyLogs
+    // Document ID: logId
+    // Fields:
+    //   - userId: string (required, owner UID)
+    //   - subject: string (required)
+    //   - duration: number (required, minutes)
+    //   - type: string (required, enum: ["focus", "manual", "exam"])
+    //   - notes: string (optional)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "alvihossain054@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == resource.data.userId;
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      let allowedFields = ['uid', 'email', 'displayName', 'photoURL', 'theme', 'accentColor', 'fontFamily', 'quietHours', 'createdAt'];
+      return hasRequiredFields(['uid', 'email']) &&
+        hasOnlyAllowedFields(allowedFields) &&
+        data.uid == request.auth.uid &&
+        data.email is string &&
+        (!('displayName' in data) || data.displayName is string) &&
+        (!('photoURL' in data) || data.photoURL is string) &&
+        (!('theme' in data) || data.theme in ['light', 'dark', 'system']) &&
+        (!('accentColor' in data) || data.accentColor is string) &&
+        (!('fontFamily' in data) || data.fontFamily is string) &&
+        (!('quietHours' in data) || data.quietHours is map) &&
+        (!('createdAt' in data) || isValidDateString(data.createdAt));
+    }
+
+    function isValidNote(data) {
+      return hasRequiredFields(['userId', 'title', 'content', 'updatedAt', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+        data.content is string && data.content.size() < 10000 &&
+        isValidDateString(data.createdAt) &&
+        isValidDateString(data.updatedAt);
+    }
+
+    function isValidTask(data) {
+      return hasRequiredFields(['userId', 'title', 'priority', 'isCompleted', 'order', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+        data.priority in ['low', 'medium', 'high'] &&
+        data.isCompleted is bool &&
+        data.order is int &&
+        isValidDateString(data.createdAt);
+    }
+
+    function isValidReminder(data) {
+      return hasRequiredFields(['userId', 'title', 'type', 'dateTime', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+        data.type in ['exam', 'assignment', 'study', 'other'] &&
+        isValidDateString(data.dateTime) &&
+        isValidDateString(data.createdAt);
+    }
+
+    function isValidTranslation(data) {
+      return hasRequiredFields(['userId', 'sourceText', 'translatedText', 'sourceLang', 'targetLang', 'isFavorite', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.sourceText is string && data.sourceText.size() < 5000 &&
+        data.translatedText is string && data.translatedText.size() < 5000 &&
+        data.isFavorite is bool &&
+        isValidDateString(data.createdAt);
+    }
+
+    function isValidFocusSession(data) {
+      return hasRequiredFields(['userId', 'type', 'duration', 'completed', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.type in ['work', 'break'] &&
+        data.duration is int &&
+        data.completed is bool &&
+        isValidDateString(data.createdAt);
+    }
+
+    function isValidExam(data) {
+      return hasRequiredFields(['userId', 'subject', 'dateTime', 'type', 'priority', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.subject is string && data.subject.size() > 0 && data.subject.size() < 200 &&
+        data.type in ['Midterm', 'Final', 'Test', 'Quiz', 'Assignment', 'Other'] &&
+        data.priority in ['low', 'medium', 'high'] &&
+        isValidDateString(data.dateTime) &&
+        isValidDateString(data.createdAt);
+    }
+
+    function isValidStudyLog(data) {
+      return hasRequiredFields(['userId', 'subject', 'duration', 'type', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.subject is string && data.subject.size() > 0 && data.subject.size() < 200 &&
+        data.duration is number &&
+        data.type in ['focus', 'manual', 'exam'] &&
+        isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && isValidUser(request.resource.data) || isAdmin();
+    }
+
+    // Notes
+    match /notes/{noteId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidNote(request.resource.data) && uidUnchanged();
+      allow update: if (isDocOwner() && isValidNote(request.resource.data) && uidNotModified()) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Tasks
+    match /tasks/{taskId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidTask(request.resource.data) && uidUnchanged();
+      allow update: if (isDocOwner() && isValidTask(request.resource.data) && uidNotModified()) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Reminders
+    match /reminders/{reminderId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidReminder(request.resource.data) && uidUnchanged();
+      allow update: if (isDocOwner() && isValidReminder(request.resource.data) && uidNotModified()) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Translations
+    match /translations/{translationId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidTranslation(request.resource.data) && uidUnchanged();
+      allow update: if (isDocOwner() && isValidTranslation(request.resource.data) && uidNotModified()) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Focus Sessions
+    match /focusSessions/{sessionId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidFocusSession(request.resource.data) && uidUnchanged();
+      allow update: if (isDocOwner() && isValidFocusSession(request.resource.data) && uidNotModified()) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Exams
+    match /exams/{examId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidExam(request.resource.data) && uidUnchanged();
+      allow update: if (isDocOwner() && isValidExam(request.resource.data) && uidNotModified()) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Study Logs
+    match /studyLogs/{logId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidStudyLog(request.resource.data) && uidUnchanged();
+      allow update: if (isDocOwner() && isValidStudyLog(request.resource.data) && uidNotModified()) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+  }
+}

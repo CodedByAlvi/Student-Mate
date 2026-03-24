@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user preferences and profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "theme": { "type": "string", "enum": ["light", "dark"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Note": {
+      "title": "Student Note",
+      "description": "Rich text notes for students.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "folder": { "type": "string" },
+        "color": { "type": "string" },
+        "isPinned": { "type": "boolean" },
+        "attachedDate": { "type": "string", "format": "date" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "content"]
+    },
+    "Task": {
+      "title": "To-Do Task",
+      "description": "Tasks for students to complete.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+        "dueDate": { "type": "string", "format": "date" },
+        "isCompleted": { "type": "boolean" },
+        "order": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title"]
+    },
+    "Reminder": {
+      "title": "Academic Reminder",
+      "description": "Reminders for exams, assignments, etc.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["exam", "assignment", "study", "other"] },
+        "dateTime": { "type": "string", "format": "date-time" },
+        "repeat": { "type": "string" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "dateTime"]
+    },
+    "Translation": {
+      "title": "Translation History",
+      "description": "History of user translations.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "sourceText": { "type": "string" },
+        "translatedText": { "type": "string" },
+        "sourceLang": { "type": "string" },
+        "targetLang": { "type": "string" },
+        "isFavorite": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "sourceText", "translatedText"]
+    },
+    "FocusSession": {
+      "title": "Focus Session",
+      "description": "Recorded study or focus sessions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["work", "break"] },
+        "duration": { "type": "integer", "description": "Duration in seconds" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "duration", "startTime"]
+    },
+    "Exam": {
+      "title": "Exam Countdown",
+      "description": "Academic exams with countdown tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "subject": { "type": "string" },
+        "dateTime": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["Midterm", "Final", "Test", "Quiz", "Assignment", "Other"] },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "subject", "dateTime", "type", "priority"]
+    },
+    "StudyLog": {
+      "title": "Study Log",
+      "description": "Records of study sessions for different subjects.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "subject": { "type": "string" },
+        "duration": { "type": "integer", "description": "Duration in minutes" },
+        "date": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "subject", "duration", "date", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/notes/{noteId}": {
+      "schema": "Note",
+      "description": "Student notes"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "To-do tasks"
+    },
+    "/reminders/{reminderId}": {
+      "schema": "Reminder",
+      "description": "Academic reminders"
+    },
+    "/translations/{translationId}": {
+      "schema": "Translation",
+      "description": "Translation history"
+    },
+    "/focusSessions/{sessionId}": {
+      "schema": "FocusSession",
+      "description": "Focus session records"
+    },
+    "/exams/{examId}": {
+      "schema": "Exam",
+      "description": "Exam countdown records"
+    },
+    "/studyLogs/{logId}": {
+      "schema": "StudyLog",
+      "description": "Study session logs"
+    }
+  }
+}

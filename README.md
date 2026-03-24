@@ -1,11 +1,24 @@
-<div align="center">
+# 100% Free-Tier Version
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+This application has been optimized to run entirely on free-tier resources.
 
-  <h1>Built with AI Studio</h2>
+## Modifications for Free Tier Compatibility:
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- **Gemini API (AI Features):** 
+  - Real-time calls to Gemini AI models have been disabled to avoid paid API costs and quota limits.
+  - The `translateText` and `textToSpeech` functions in `src/lib/gemini.ts` now use mock responses and local logic.
+  - This ensures the app remains functional for demonstration purposes without requiring a linked billing account or a paid API key.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+- **External APIs:**
+  - Any potentially paid external API calls have been replaced with static sample data or local logic.
 
-</div>
+- **Hosting Optimization:**
+  - The project is configured for easy deployment on free hosting platforms like Netlify or Vercel.
+  - No server-side cloud functions requiring billing are used.
+
+## Deployment:
+
+You can deploy this app directly to Vercel or Netlify by connecting your GitHub repository. The app will work out-of-the-box without any additional configuration for paid services.
+
+---
+*Note: This version is intended for demonstration and development purposes where zero-cost operation is a priority.*
