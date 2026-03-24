@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Notebook as NoteIcon, Languages, CheckSquare, Brain, Settings as SettingsIcon, Moon, Sun, GraduationCap, AlarmClock, Timer } from 'lucide-react';
+import { Home, Notebook as NoteIcon, CheckSquare, Brain, Settings as SettingsIcon, Moon, Sun, GraduationCap, AlarmClock, Timer } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useStore } from '../store/useStore';
@@ -12,12 +12,12 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, activeTab, setActiveTab }: LayoutProps) {
-  const { user, updateUserProfile } = useStore();
+  const user = useStore(state => state.user);
+  const updateUserProfile = useStore(state => state.updateUserProfile);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'notebook', label: 'Notes', icon: NoteIcon },
-    { id: 'translator', label: 'Translator', icon: Languages },
     { id: 'exams', label: 'Exams', icon: AlarmClock },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare },
     { id: 'stopwatch', label: 'Stopwatch', icon: Timer },

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
-import { Note, Task, Reminder, Translation, UserProfile, FocusSession, Exam, StudyLog, SubjectStats, StudyPlan, StudyPlanItem } from '../types';
+import { Note, Task, Reminder, UserProfile, FocusSession, Exam, StudyLog, SubjectStats, StudyPlan, StudyPlanItem } from '../types';
 
 const STORAGE_KEY = 'student-mate-data';
 
@@ -21,7 +21,6 @@ interface AppState {
   notes: Note[];
   tasks: Task[];
   reminders: Reminder[];
-  translations: Translation[];
   focusSessions: FocusSession[];
   exams: Exam[];
   studyLogs: StudyLog[];
@@ -61,12 +60,6 @@ interface AppState {
   addReminder: (reminder: Partial<Reminder>) => Promise<void>;
   updateReminder: (id: string, reminder: Partial<Reminder>) => Promise<void>;
   deleteReminder: (id: string) => Promise<void>;
-  
-  // Translations
-  addTranslation: (translation: Partial<Translation>) => Promise<void>;
-  deleteTranslation: (id: string) => Promise<void>;
-  clearTranslations: () => Promise<void>;
-  toggleFavoriteTranslation: (id: string, isFavorite: boolean) => Promise<void>;
 
   // Focus Sessions
   addFocusSession: (session: Partial<FocusSession>) => Promise<void>;
@@ -89,17 +82,33 @@ interface AppState {
 }
 
 const saveToStorage = (state: Partial<AppState>) => {
-  const data = {
-    notes: state.notes,
-    tasks: state.tasks,
-    reminders: state.reminders,
-    translations: state.translations,
-    focusSessions: state.focusSessions,
-    exams: state.exams,
-    studyLogs: state.studyLogs,
-    user: state.user,
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const data = {
+        notes: state.notes,
+        tasks: state.tasks,
+        reminders: state.reminders,
+        focusSessions: state.focusSessions,
+        exams: state.exams,
+        studyLogs: state.studyLogs,
+        user: state.user,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+  } catch (error) {
+    console.error('Failed to save to localStorage:', error);
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      toast.error('Storage quota exceeded. Please delete some old data.');
+    }
+  }
+};
+
+let saveTimeout: any = null;
+const debouncedSaveToStorage = (state: Partial<AppState>) => {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    saveToStorage(state);
+  }, 1000);
 };
 
 export const useStore = create<AppState>((set, get) => ({
@@ -107,7 +116,6 @@ export const useStore = create<AppState>((set, get) => ({
   notes: [],
   tasks: [],
   reminders: [],
-  translations: [],
   focusSessions: [],
   exams: [],
   studyLogs: [],
@@ -125,36 +133,43 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   loadLocalData: () => {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      try {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
         const parsed = JSON.parse(data);
-        set({
-          notes: parsed.notes || [],
-          tasks: parsed.tasks || [],
-          reminders: parsed.reminders || [],
-          translations: parsed.translations || [],
-          focusSessions: parsed.focusSessions || [],
-          exams: parsed.exams || [],
-          studyLogs: parsed.studyLogs || [],
-          user: parsed.user || DEFAULT_USER,
-        });
-      } catch (e) {
-        console.error('Failed to load local data', e);
+        if (parsed && typeof parsed === 'object') {
+          set({
+            notes: Array.isArray(parsed.notes) ? parsed.notes : [],
+            tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+            reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [],
+            focusSessions: Array.isArray(parsed.focusSessions) ? parsed.focusSessions : [],
+            exams: Array.isArray(parsed.exams) ? parsed.exams : [],
+            studyLogs: Array.isArray(parsed.studyLogs) ? parsed.studyLogs : [],
+            user: parsed.user || DEFAULT_USER,
+            isLoading: false,
+          });
+        } else {
+          set({ isLoading: false });
+        }
+      } else {
+        set({ isLoading: false });
       }
+    } catch (e) {
+      console.error('Failed to load local data', e);
+      set({ isLoading: false });
     }
   },
 
   setUser: (user) => {
     set({ user });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   updateUserProfile: async (updates) => {
     const { user } = get();
     if (!user) return;
     const updatedUser = { ...user, ...updates };
     set({ user: updatedUser });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   setAuthReady: (ready) => set({ isAuthReady: ready }),
   setActiveTab: (tab) => {
@@ -179,23 +194,26 @@ export const useStore = create<AppState>((set, get) => ({
   })),
 
   addNote: async (note) => {
-    if (!note.title?.trim() && !note.content?.trim()) {
+    const title = note.title?.trim() || '';
+    const content = note.content?.trim() || '';
+    
+    if (!title && !content) {
       toast.error('Note cannot be empty');
       return;
     }
     const { notes } = get();
     const newNote = {
       ...note,
-      id: Math.random().toString(36).substring(7),
+      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isPinned: note.isPinned || false,
-      title: note.title?.slice(0, 200) || 'Untitled Note',
-      content: note.content?.slice(0, 10000) || '',
+      title: title.slice(0, 200) || 'Untitled Note',
+      content: content.slice(0, 10000),
     } as Note;
     set({ notes: [newNote, ...notes] });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   updateNote: async (id, note) => {
     const { notes } = get();
@@ -207,31 +225,32 @@ export const useStore = create<AppState>((set, get) => ({
       updatedAt: new Date().toISOString() 
     } : n);
     set({ notes: updatedNotes });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   deleteNote: async (id) => {
     const { notes } = get();
     set({ notes: notes.filter(n => n.id !== id) });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
 
   addTask: async (task) => {
-    if (!task.title?.trim()) {
+    const title = task.title?.trim();
+    if (!title) {
       toast.error('Task title is required');
       return;
     }
     const { tasks } = get();
     const newTask = {
       ...task,
-      id: Math.random().toString(36).substring(7),
+      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
       userId: 'local-user',
       isCompleted: false,
       createdAt: new Date().toISOString(),
       order: tasks.length,
-      title: task.title.slice(0, 500),
+      title: title.slice(0, 500),
     } as Task;
     set({ tasks: [newTask, ...tasks] });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   updateTask: async (id, task) => {
     const { tasks } = get();
@@ -241,12 +260,12 @@ export const useStore = create<AppState>((set, get) => ({
       title: task.title !== undefined ? task.title.slice(0, 500) : t.title,
     } : t);
     set({ tasks: updatedTasks });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   deleteTask: async (id) => {
     const { tasks } = get();
     set({ tasks: tasks.filter(t => t.id !== id) });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
 
   addReminder: async (reminder) => {
@@ -257,13 +276,13 @@ export const useStore = create<AppState>((set, get) => ({
     const { reminders } = get();
     const newReminder = {
       ...reminder,
-      id: Math.random().toString(36).substring(7),
+      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       title: reminder.title.slice(0, 500),
     } as Reminder;
     set({ reminders: [newReminder, ...reminders] });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   updateReminder: async (id, reminder) => {
     const { reminders } = get();
@@ -273,55 +292,24 @@ export const useStore = create<AppState>((set, get) => ({
       title: reminder.title !== undefined ? reminder.title.slice(0, 500) : r.title,
     } : r);
     set({ reminders: updatedReminders });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   deleteReminder: async (id) => {
     const { reminders } = get();
     set({ reminders: reminders.filter(r => r.id !== id) });
-    saveToStorage(get());
-  },
-
-  addTranslation: async (translation) => {
-    if (!translation.sourceText?.trim()) return;
-    const { translations } = get();
-    const newTranslation = {
-      ...translation,
-      id: Math.random().toString(36).substring(7),
-      userId: 'local-user',
-      isFavorite: false,
-      createdAt: new Date().toISOString(),
-      sourceText: translation.sourceText.slice(0, 5000),
-      translatedText: translation.translatedText?.slice(0, 5000) || '',
-    } as Translation;
-    set({ translations: [newTranslation, ...translations].slice(0, 100) }); // Limit history
-    saveToStorage(get());
-  },
-  deleteTranslation: async (id) => {
-    const { translations } = get();
-    set({ translations: translations.filter(t => t.id !== id) });
-    saveToStorage(get());
-  },
-  clearTranslations: async () => {
-    set({ translations: [] });
-    saveToStorage(get());
-  },
-  toggleFavoriteTranslation: async (id, isFavorite) => {
-    const { translations } = get();
-    const updatedTranslations = translations.map(t => t.id === id ? { ...t, isFavorite } : t);
-    set({ translations: updatedTranslations });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
 
   addFocusSession: async (session) => {
     const { focusSessions } = get();
     const newSession = {
       ...session,
-      id: Math.random().toString(36).substring(7),
+      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
     } as FocusSession;
     set({ focusSessions: [newSession, ...focusSessions] });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
 
   addExam: async (exam) => {
@@ -332,13 +320,13 @@ export const useStore = create<AppState>((set, get) => ({
     const { exams } = get();
     const newExam = {
       ...exam,
-      id: Math.random().toString(36).substring(7),
+      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       subject: exam.subject.slice(0, 100),
     } as Exam;
     set({ exams: [newExam, ...exams] });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   updateExam: async (id, exam) => {
     const { exams } = get();
@@ -348,12 +336,12 @@ export const useStore = create<AppState>((set, get) => ({
       subject: exam.subject !== undefined ? exam.subject.slice(0, 100) : e.subject,
     } : e);
     set({ exams: updatedExams });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   deleteExam: async (id) => {
     const { exams } = get();
     set({ exams: exams.filter(e => e.id !== id) });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
 
   addStudyLog: async (log) => {
@@ -364,27 +352,27 @@ export const useStore = create<AppState>((set, get) => ({
     const { studyLogs } = get();
     const newLog = {
       ...log,
-      id: Math.random().toString(36).substring(7),
+      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       subject: log.subject.slice(0, 100),
       notes: log.notes?.slice(0, 2000) || '',
     } as StudyLog;
     set({ studyLogs: [newLog, ...studyLogs] });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
   deleteStudyLog: async (id) => {
     const { studyLogs } = get();
     set({ studyLogs: studyLogs.filter(l => l.id !== id) });
-    saveToStorage(get());
+    debouncedSaveToStorage(get());
   },
 
   getSubjectStats: () => {
     const { tasks, studyLogs, exams } = get();
     const subjects = Array.from(new Set([
       ...tasks.map(t => t.category).filter(Boolean),
-      ...studyLogs.map(l => l.subject),
-      ...exams.map(e => e.subject)
+      ...studyLogs.map(l => l.subject).filter(Boolean),
+      ...exams.map(e => e.subject).filter(Boolean)
     ])) as string[];
 
     return subjects.map(subject => {
@@ -392,14 +380,18 @@ export const useStore = create<AppState>((set, get) => ({
       const subjectLogs = studyLogs.filter(l => l.subject === subject);
       const subjectExams = exams.filter(e => e.subject === subject);
 
-      const totalStudyTime = subjectLogs.reduce((acc, l) => acc + l.duration, 0);
+      const totalStudyTime = subjectLogs.reduce((acc, l) => acc + (Number(l.duration) || 0), 0);
       const taskCompletionRate = subjectTasks.length > 0 
         ? (subjectTasks.filter(t => t.isCompleted).length / subjectTasks.length) * 100 
         : 100;
       
       const confidence = Math.min(100, (totalStudyTime / 300) * 50 + (taskCompletionRate * 0.5));
       
-      const upcomingExam = subjectExams.find(e => new Date(e.dateTime) > new Date());
+      const upcomingExam = subjectExams.find(e => {
+        const examDate = new Date(e.dateTime);
+        return !isNaN(examDate.getTime()) && examDate > new Date();
+      });
+      
       const daysToExam = upcomingExam 
         ? Math.max(1, (new Date(upcomingExam.dateTime).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
         : 30;

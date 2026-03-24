@@ -6,7 +6,8 @@ import { CheckSquare, Bell } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function Tasks() {
-  const { activeSubTab, setActiveSubTab } = useStore();
+  const activeSubTab = useStore(state => state.activeSubTab);
+  const setActiveSubTab = useStore(state => state.setActiveSubTab);
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 pb-20">

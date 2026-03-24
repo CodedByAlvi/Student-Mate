@@ -8,32 +8,47 @@ import { cn } from '../lib/utils';
 import { ACCENT_COLORS, AccentColor } from '../constants';
 
 export default function Home() {
-  const { user, notes, tasks, reminders, focusSessions, exams, setActiveTab } = useStore();
+  const user = useStore(state => state.user);
+  const notes = useStore(state => state.notes);
+  const tasks = useStore(state => state.tasks);
+  const reminders = useStore(state => state.reminders);
+  const focusSessions = useStore(state => state.focusSessions);
+  const exams = useStore(state => state.exams);
+  const setActiveTab = useStore(state => state.setActiveTab);
+  
   const [currentExamIndex, setCurrentExamIndex] = useState(0);
   
   const accent = (user?.accentColor || 'emerald') as AccentColor;
   const brandColor = useMemo(() => ACCENT_COLORS[accent]?.[600] || ACCENT_COLORS.emerald[600], [accent]);
   
   const pendingTasks = useMemo(() => tasks.filter(t => !t.isCompleted), [tasks]);
-  const upcomingReminders = useMemo(() => reminders.filter(r => new Date(r.dateTime) > new Date()).slice(0, 3), [reminders]);
+  const upcomingReminders = useMemo(() => reminders.filter(r => {
+    const date = new Date(r.dateTime);
+    return !isNaN(date.getTime()) && date > new Date();
+  }).slice(0, 3), [reminders]);
   
   // Focus Score Calculation (0-100)
-  const todaySessions = useMemo(() => focusSessions.filter(s => 
-    new Date(s.createdAt).toDateString() === new Date().toDateString()
-  ), [focusSessions]);
+  const todaySessions = useMemo(() => focusSessions.filter(s => {
+    const date = new Date(s.createdAt);
+    return !isNaN(date.getTime()) && date.toDateString() === new Date().toDateString();
+  }), [focusSessions]);
 
   const focusMinutes = useMemo(() => todaySessions.reduce((acc, s) => acc + s.duration, 0), [todaySessions]);
   const focusScore = useMemo(() => Math.min(100, Math.round((focusMinutes / 120) * 100)), [focusMinutes]);
 
   // Productivity Graph Data
   const chartData = useMemo(() => {
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     return days.map(day => {
-      const sessions = focusSessions.filter(s => isSameDay(new Date(s.createdAt), day));
-      const duration = sessions.reduce((acc, s) => acc + s.duration, 0);
+      const sessions = focusSessions.filter(s => {
+        const date = new Date(s.createdAt);
+        return !isNaN(date.getTime()) && isSameDay(date, day);
+      });
+      const duration = sessions.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
       return {
         name: format(day, 'EEE'),
         minutes: duration,
@@ -49,11 +64,17 @@ export default function Home() {
   ], [notes.length, pendingTasks.length, focusScore]);
 
   const upcomingExams = useMemo(() => exams
-    .filter(e => new Date(e.dateTime) > new Date())
+    .filter(e => {
+      const date = new Date(e.dateTime);
+      return !isNaN(date.getTime()) && date > new Date();
+    })
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()), [exams]);
 
   useEffect(() => {
-    if (upcomingExams.length <= 1) return;
+    if (upcomingExams.length <= 1) {
+      setCurrentExamIndex(0);
+      return;
+    }
     
     const interval = setInterval(() => {
       setCurrentExamIndex((prev) => (prev + 1) % upcomingExams.length);
@@ -157,7 +178,7 @@ export default function Home() {
         
         <div className="relative overflow-hidden">
           <AnimatePresence mode="wait">
-            {upcomingExams.length > 0 ? (
+            {upcomingExams.length > 0 && upcomingExams[currentExamIndex] ? (
               <motion.div
                 key={upcomingExams[currentExamIndex].id}
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -183,17 +204,19 @@ export default function Home() {
                       </div>
                     </div>
                     {(() => {
-                      const diffDays = differenceInCalendarDays(new Date(upcomingExams[currentExamIndex].dateTime), new Date());
+                      const examDate = new Date(upcomingExams[currentExamIndex].dateTime);
+                      if (isNaN(examDate.getTime())) return null;
+                      const diffDays = differenceInCalendarDays(examDate, new Date());
                       return (
                         <div className={cn(
                           "flex flex-col items-end",
                           diffDays <= 3 ? "text-amber-600" : "text-stone-400"
                         )}>
                           <span className="text-2xl font-black leading-none">
-                            {diffDays === 0 ? '0' : diffDays}
+                            {diffDays <= 0 ? '0' : diffDays}
                           </span>
                           <span className="text-[10px] font-bold uppercase tracking-widest">
-                            {diffDays === 0 ? 'Today' : diffDays === 1 ? 'Day Left' : 'Days Left'}
+                            {diffDays <= 0 ? 'Today' : diffDays === 1 ? 'Day Left' : 'Days Left'}
                           </span>
                         </div>
                       );
@@ -204,13 +227,19 @@ export default function Home() {
                     <div className="flex items-center gap-3">
                       <Calendar className="h-4 w-4 text-stone-400" />
                       <span className="text-sm font-medium">
-                        {format(new Date(upcomingExams[currentExamIndex].dateTime), 'MMMM do, yyyy')}
+                        {(() => {
+                          const date = new Date(upcomingExams[currentExamIndex].dateTime);
+                          return !isNaN(date.getTime()) ? format(date, 'MMMM do, yyyy') : 'Invalid Date';
+                        })()}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
                       <Clock className="h-4 w-4 text-stone-400" />
                       <span className="text-sm font-medium">
-                        {format(new Date(upcomingExams[currentExamIndex].dateTime), 'p')}
+                        {(() => {
+                          const date = new Date(upcomingExams[currentExamIndex].dateTime);
+                          return !isNaN(date.getTime()) ? format(date, 'p') : '--:--';
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -255,23 +284,27 @@ export default function Home() {
         </div>
         <div className="space-y-3">
           {upcomingReminders.length > 0 ? (
-            upcomingReminders.map((reminder) => (
-              <motion.div 
-                key={reminder.id} 
-                whileHover={{ x: 4 }}
-                className="flex items-center gap-4 rounded-3xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-900"
-              >
-                <div className="flex h-12 w-12 flex-shrink-0 flex-col items-center justify-center rounded-2xl bg-stone-100 text-stone-500 dark:bg-stone-800">
-                  <span className="text-[10px] font-bold uppercase">{format(new Date(reminder.dateTime), 'MMM')}</span>
-                  <span className="text-lg font-bold">{format(new Date(reminder.dateTime), 'dd')}</span>
-                </div>
-                <div className="flex-1 space-y-0.5">
-                  <h4 className="font-bold">{reminder.title}</h4>
-                  <p className="text-xs text-stone-500">{format(new Date(reminder.dateTime), 'p')}</p>
-                </div>
-                <div className={`h-3 w-3 rounded-full ${reminder.color || 'bg-brand-500'}`} />
-              </motion.div>
-            ))
+            upcomingReminders.map((reminder) => {
+              const date = new Date(reminder.dateTime);
+              if (isNaN(date.getTime())) return null;
+              return (
+                <motion.div 
+                  key={reminder.id} 
+                  whileHover={{ x: 4 }}
+                  className="flex items-center gap-4 rounded-3xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-900"
+                >
+                  <div className="flex h-12 w-12 flex-shrink-0 flex-col items-center justify-center rounded-2xl bg-stone-100 text-stone-500 dark:bg-stone-800">
+                    <span className="text-[10px] font-bold uppercase">{format(date, 'MMM')}</span>
+                    <span className="text-lg font-bold">{format(date, 'dd')}</span>
+                  </div>
+                  <div className="flex-1 space-y-0.5">
+                    <h4 className="font-bold">{reminder.title}</h4>
+                    <p className="text-xs text-stone-500">{format(date, 'p')}</p>
+                  </div>
+                  <div className={`h-3 w-3 rounded-full ${reminder.color || 'bg-brand-500'}`} />
+                </motion.div>
+              );
+            })
           ) : (
             <div className="rounded-3xl border border-dashed border-stone-200 p-12 text-center dark:border-stone-800">
               <p className="text-sm text-stone-400">No upcoming events</p>

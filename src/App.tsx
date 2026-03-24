@@ -9,7 +9,6 @@ import { cn } from './lib/utils';
 import Layout from './components/Layout';
 import Home from './components/Home';
 import Notebook from './components/Notebook';
-import Translator from './components/Translator';
 import Stopwatch from './components/Stopwatch';
 import FocusMode from './components/FocusMode';
 import Exams from './components/Exams';
@@ -22,7 +21,10 @@ import ErrorBoundary from './components/ErrorBoundary';
 import CustomToaster from './components/CustomToaster';
 
 export default function App() {
-  const { user, activeTab, setActiveTab, loadLocalData } = useStore();
+  const user = useStore(state => state.user);
+  const activeTab = useStore(state => state.activeTab);
+  const setActiveTab = useStore(state => state.setActiveTab);
+  const loadLocalData = useStore(state => state.loadLocalData);
 
   // Load local data on mount
   useEffect(() => {
@@ -59,7 +61,6 @@ export default function App() {
     switch (activeTab) {
       case 'home': return <Home />;
       case 'notebook': return <Notebook />;
-      case 'translator': return <Translator />;
       case 'tasks': return <Tasks />;
       case 'exams': return <Exams />;
       case 'stopwatch': return <Stopwatch />;

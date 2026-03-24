@@ -61,7 +61,10 @@ const NoteCard = memo(({
           <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-stone-400">
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              {format(new Date(note.updatedAt), 'MMM d, yyyy')}
+              {(() => {
+                const date = new Date(note.updatedAt);
+                return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid Date';
+              })()}
             </div>
             {note.tags && note.tags.length > 0 && (
               <div className="flex items-center gap-1">
@@ -154,7 +157,10 @@ const NoteCard = memo(({
           <div className="flex flex-col">
             <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-300 dark:text-stone-600">Modified</span>
             <span className="text-[10px] font-bold text-stone-500 dark:text-stone-400">
-              {format(new Date(note.updatedAt), 'MMM d, yyyy')}
+              {(() => {
+                const date = new Date(note.updatedAt);
+                return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid Date';
+              })()}
             </span>
           </div>
           {note.tags && note.tags.length > 0 && (
@@ -222,7 +228,13 @@ const NoteCard = memo(({
 NoteCard.displayName = 'NoteCard';
 
 export default function Notebook() {
-  const { notes, addNote, updateNote, deleteNote, isLoading, setConfirmModal } = useStore();
+  const notes = useStore(state => state.notes);
+  const addNote = useStore(state => state.addNote);
+  const updateNote = useStore(state => state.updateNote);
+  const deleteNote = useStore(state => state.deleteNote);
+  const isLoading = useStore(state => state.isLoading);
+  const setConfirmModal = useStore(state => state.setConfirmModal);
+
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -436,7 +448,12 @@ export default function Notebook() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">
                   <Clock className="h-3 w-3" />
-                  <span>{format(new Date(currentNote.updatedAt), 'MMMM d, yyyy')}</span>
+                  <span>
+                    {(() => {
+                      const date = new Date(currentNote.updatedAt);
+                      return !isNaN(date.getTime()) ? format(date, 'MMMM d, yyyy') : 'Invalid Date';
+                    })()}
+                  </span>
                 </div>
                 {!isStudyMode && (
                   <div className="flex flex-wrap gap-2">

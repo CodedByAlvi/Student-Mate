@@ -75,17 +75,6 @@ export interface Exam {
   createdAt: string;
 }
 
-export interface Translation {
-  id: string;
-  userId: string;
-  sourceText: string;
-  translatedText: string;
-  sourceLang: string;
-  targetLang: string;
-  isFavorite: boolean;
-  createdAt: string;
-}
-
 export interface StudyLog {
   id: string;
   userId: string;

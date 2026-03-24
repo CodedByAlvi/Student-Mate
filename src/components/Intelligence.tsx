@@ -34,16 +34,14 @@ import { cn } from '../lib/utils';
 import { Exam, StudyLog, SubjectStats } from '../types';
 
 export default function Intelligence() {
-  const { 
-    exams, 
-    tasks, 
-    studyLogs, 
-    addExam, 
-    deleteExam, 
-    addStudyLog, 
-    getSubjectStats,
-    getStudyPlan 
-  } = useStore();
+  const exams = useStore(state => state.exams);
+  const tasks = useStore(state => state.tasks);
+  const studyLogs = useStore(state => state.studyLogs);
+  const addExam = useStore(state => state.addExam);
+  const deleteExam = useStore(state => state.deleteExam);
+  const addStudyLog = useStore(state => state.addStudyLog);
+  const getSubjectStats = useStore(state => state.getSubjectStats);
+  const getStudyPlan = useStore(state => state.getStudyPlan);
 
   const [showAddExam, setShowAddExam] = useState(false);
   const [showAddLog, setShowAddLog] = useState(false);
@@ -52,10 +50,13 @@ export default function Intelligence() {
   const stats = useMemo(() => getSubjectStats(), [tasks, studyLogs, exams]);
   const studyPlan = useMemo(() => getStudyPlan(availableTime), [stats, availableTime]);
 
-  const urgentExams = exams
-    .filter(e => isAfter(new Date(e.dateTime), new Date()))
+  const urgentExams = useMemo(() => exams
+    .filter(e => {
+      const date = new Date(e.dateTime);
+      return !isNaN(date.getTime()) && isAfter(date, new Date());
+    })
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())
-    .slice(0, 3);
+    .slice(0, 3), [exams]);
 
   const weakSubjects = stats
     .filter(s => s.priorityScore > 40)
@@ -109,7 +110,11 @@ export default function Intelligence() {
               </p>
             </motion.div>
           )}
-          {urgentExams.length > 0 && differenceInDays(new Date(urgentExams[0].dateTime), new Date()) <= 2 && (
+          {urgentExams.length > 0 && (() => {
+            const date = new Date(urgentExams[0].dateTime);
+            if (isNaN(date.getTime())) return false;
+            return differenceInDays(date, new Date()) <= 2;
+          })() && (
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -119,7 +124,10 @@ export default function Intelligence() {
                 <Clock className="h-5 w-5" />
               </div>
               <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
-                Upcoming exam: <span className="font-bold">{urgentExams[0].subject}</span> in {differenceInDays(new Date(urgentExams[0].dateTime), new Date())} days.
+                Upcoming exam: <span className="font-bold">{urgentExams[0].subject}</span> in {(() => {
+                  const date = new Date(urgentExams[0].dateTime);
+                  return !isNaN(date.getTime()) ? differenceInDays(date, new Date()) : 0;
+                })()} days.
               </p>
             </motion.div>
           )}
@@ -144,7 +152,9 @@ export default function Intelligence() {
         <div className="grid gap-4">
           {urgentExams.length > 0 ? (
             urgentExams.map(exam => {
-              const daysLeft = differenceInDays(new Date(exam.dateTime), new Date());
+              const examDate = new Date(exam.dateTime);
+              if (isNaN(examDate.getTime())) return null;
+              const daysLeft = differenceInDays(examDate, new Date());
               const isUrgent = daysLeft <= 3;
               
               return (

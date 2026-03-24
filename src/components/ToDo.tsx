@@ -7,7 +7,12 @@ import toast from 'react-hot-toast';
 import { Priority } from '../types';
 
 export default function ToDo() {
-  const { tasks, addTask, updateTask, deleteTask, setConfirmModal } = useStore();
+  const tasks = useStore(state => state.tasks);
+  const addTask = useStore(state => state.addTask);
+  const updateTask = useStore(state => state.updateTask);
+  const deleteTask = useStore(state => state.deleteTask);
+  const setConfirmModal = useStore(state => state.setConfirmModal);
+
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [search, setSearch] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');

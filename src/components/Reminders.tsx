@@ -7,7 +7,11 @@ import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 
 export default function Reminders() {
-  const { reminders, addReminder, deleteReminder, setConfirmModal } = useStore();
+  const reminders = useStore(state => state.reminders);
+  const addReminder = useStore(state => state.addReminder);
+  const deleteReminder = useStore(state => state.deleteReminder);
+  const setConfirmModal = useStore(state => state.setConfirmModal);
+
   const [showAddReminder, setShowAddReminder] = useState(false);
   const [title, setTitle] = useState('');
   const [dateTime, setDateTime] = useState('');
@@ -129,11 +133,21 @@ export default function Reminders() {
               <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-stone-400">
                 <div className="flex items-center gap-1.5 bg-stone-50 dark:bg-stone-800 px-2 py-1 rounded-lg">
                   <Calendar className="h-3 w-3 text-brand-500" />
-                  <span>{format(new Date(reminder.dateTime), 'MMM d, yyyy')}</span>
+                  <span>
+                    {(() => {
+                      const date = new Date(reminder.dateTime);
+                      return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid Date';
+                    })()}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-stone-50 dark:bg-stone-800 px-2 py-1 rounded-lg">
                   <Clock className="h-3 w-3 text-brand-500" />
-                  <span>{format(new Date(reminder.dateTime), 'p')}</span>
+                  <span>
+                    {(() => {
+                      const date = new Date(reminder.dateTime);
+                      return !isNaN(date.getTime()) ? format(date, 'p') : '--:--';
+                    })()}
+                  </span>
                 </div>
               </div>
             </div>

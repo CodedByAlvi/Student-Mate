@@ -83,12 +83,20 @@ export default function Exams() {
     }
   };
 
-  const sortedExams = [...exams].sort((a, b) => 
-    new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
-  );
+  const sortedExams = [...exams].sort((a, b) => {
+    const dateA = new Date(a.dateTime).getTime();
+    const dateB = new Date(b.dateTime).getTime();
+    return (isNaN(dateA) ? 0 : dateA) - (isNaN(dateB) ? 0 : dateB);
+  });
 
-  const upcomingExams = sortedExams.filter(e => !isPast(new Date(e.dateTime)));
-  const pastExams = sortedExams.filter(e => isPast(new Date(e.dateTime)));
+  const upcomingExams = sortedExams.filter(e => {
+    const date = new Date(e.dateTime);
+    return !isNaN(date.getTime()) && !isPast(date);
+  });
+  const pastExams = sortedExams.filter(e => {
+    const date = new Date(e.dateTime);
+    return !isNaN(date.getTime()) && isPast(date);
+  });
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-6 pb-20">
@@ -197,7 +205,12 @@ export default function Exams() {
                   </div>
                   <div>
                     <h4 className="font-bold text-stone-700 dark:text-stone-300">{exam.subject}</h4>
-                    <p className="text-xs text-stone-400">{format(new Date(exam.dateTime), 'MMM d, yyyy')}</p>
+                    <p className="text-xs text-stone-400">
+                      {(() => {
+                        const date = new Date(exam.dateTime);
+                        return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid Date';
+                      })()}
+                    </p>
                   </div>
                 </div>
                 <button 
@@ -227,111 +240,118 @@ export default function Exams() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2.5rem] border border-stone-200 bg-white shadow-2xl dark:border-stone-800 dark:bg-stone-900"
+              className="relative w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-2xl dark:border-stone-800 dark:bg-stone-900"
             >
-              <div className="bg-brand-600 p-6 sm:p-8 text-white">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
-                    {editingExamId ? <Clock className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">{editingExamId ? 'Edit Exam' : 'New Exam'}</h2>
-                    <p className="text-brand-100 text-sm">{editingExamId ? 'Update your academic milestone' : 'Set your academic milestone'}</p>
+              <div className="bg-brand-600 p-6 sm:p-8 text-white shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl bg-white/20 p-3 backdrop-blur-sm">
+                      {editingExamId ? <Clock className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">{editingExamId ? 'Edit Exam' : 'New Exam'}</h2>
+                      <p className="text-brand-100 text-sm">{editingExamId ? 'Update your academic milestone' : 'Set your academic milestone'}</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-                      <Tag className="h-3 w-3" />
-                      Subject
-                    </label>
-                    <input
-                      autoFocus
-                      type="text"
-                      value={newExam.subject}
-                      onChange={e => setNewExam({ ...newExam, subject: e.target.value })}
-                      placeholder="e.g. Advanced Mathematics"
-                      className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-stone-800 dark:bg-stone-950"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+                  <div className="space-y-4">
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-                        <Plus className="h-3 w-3" />
-                        Type
+                        <Tag className="h-3 w-3" />
+                        Subject
                       </label>
-                      <select
-                        value={newExam.type}
-                        onChange={e => setNewExam({ ...newExam, type: e.target.value as ExamType })}
-                        className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 dark:border-stone-800 dark:bg-stone-950"
-                      >
-                        {EXAM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newExam.subject}
+                        onChange={e => setNewExam({ ...newExam, subject: e.target.value })}
+                        placeholder="e.g. Advanced Mathematics"
+                        className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-stone-800 dark:bg-stone-950"
+                      />
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                          <Plus className="h-3 w-3" />
+                          Type
+                        </label>
+                        <select
+                          value={newExam.type}
+                          onChange={e => setNewExam({ ...newExam, type: e.target.value as ExamType })}
+                          className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 dark:border-stone-800 dark:bg-stone-950"
+                        >
+                          {EXAM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                          <AlertCircle className="h-3 w-3" />
+                          Priority
+                        </label>
+                        <select
+                          value={newExam.priority}
+                          onChange={e => setNewExam({ ...newExam, priority: e.target.value as Priority })}
+                          className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 dark:border-stone-800 dark:bg-stone-950"
+                        >
+                          {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-                        <AlertCircle className="h-3 w-3" />
-                        Priority
+                        <Calendar className="h-3 w-3" />
+                        Date & Time
                       </label>
-                      <select
-                        value={newExam.priority}
-                        onChange={e => setNewExam({ ...newExam, priority: e.target.value as Priority })}
+                      <input
+                        type="datetime-local"
+                        value={newExam.dateTime}
+                        onChange={e => setNewExam({ ...newExam, dateTime: e.target.value })}
                         className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 dark:border-stone-800 dark:bg-stone-950"
-                      >
-                        {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-                      </select>
+                      />
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-                      <Calendar className="h-3 w-3" />
-                      Date & Time
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={newExam.dateTime}
-                      onChange={e => setNewExam({ ...newExam, dateTime: e.target.value })}
-                      className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 dark:border-stone-800 dark:bg-stone-950"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-                      <Clock className="h-3 w-3" />
-                      Description
-                    </label>
-                    <textarea
-                      value={newExam.description}
-                      onChange={e => setNewExam({ ...newExam, description: e.target.value })}
-                      placeholder="Topics, location, or notes..."
-                      rows={3}
-                      className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 dark:border-stone-800 dark:bg-stone-950"
-                    />
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                        <Clock className="h-3 w-3" />
+                        Description
+                      </label>
+                      <textarea
+                        value={newExam.description}
+                        onChange={e => setNewExam({ ...newExam, description: e.target.value })}
+                        placeholder="Topics, location, or notes..."
+                        rows={3}
+                        className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 font-semibold outline-none transition-all focus:border-brand-500 dark:border-stone-800 dark:bg-stone-950"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAdding(false);
-                      setEditingExamId(null);
-                    }}
-                    className="flex-1 rounded-2xl bg-stone-100 py-4 text-sm font-bold text-stone-600 transition-all hover:bg-stone-200 active:scale-95 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 rounded-2xl bg-brand-600 py-4 text-sm font-bold text-white shadow-xl shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-brand-600/40 active:scale-95"
-                  >
-                    {editingExamId ? 'Update Exam' : 'Save Exam'}
-                  </button>
+                <div className="p-6 sm:p-8 border-t border-stone-100 bg-stone-50 dark:border-stone-800 dark:bg-stone-900 shrink-0">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full sm:flex-1 rounded-2xl bg-brand-600 py-4 text-base font-bold text-white shadow-lg shadow-brand-600/20 transition-all hover:bg-brand-700 active:scale-95 disabled:opacity-50"
+                    >
+                      {isSubmitting ? 'Saving...' : (editingExamId ? 'Update Exam' : 'Save Exam')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAdding(false);
+                        setEditingExamId(null);
+                      }}
+                      className="w-full sm:flex-1 rounded-2xl border-2 border-stone-200 bg-white py-4 text-base font-bold text-stone-700 transition-all hover:bg-stone-100 active:scale-95 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>
@@ -352,12 +372,23 @@ const ExamCard = React.memo(({ exam, onEdit, onDelete }: { exam: Exam; onEdit: (
       const target = new Date(exam.dateTime);
       const created = new Date(exam.createdAt);
       
+      if (isNaN(target.getTime())) {
+        setTimeLeft('Invalid date');
+        setProgress(0);
+        return;
+      }
+
       const distance = formatDistanceToNow(target, { addSuffix: true });
       setTimeLeft(distance);
 
+      if (isNaN(created.getTime())) {
+        setProgress(0);
+        return;
+      }
+
       const total = target.getTime() - created.getTime();
       const elapsed = now.getTime() - created.getTime();
-      const p = Math.min(100, Math.max(0, (elapsed / total) * 100));
+      const p = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 100;
       setProgress(p);
     };
 
@@ -366,8 +397,9 @@ const ExamCard = React.memo(({ exam, onEdit, onDelete }: { exam: Exam; onEdit: (
     return () => clearInterval(interval);
   }, [exam]);
 
-  const daysLeft = differenceInCalendarDays(new Date(exam.dateTime), new Date());
-  const isUrgent = daysLeft <= 3;
+  const examDate = new Date(exam.dateTime);
+  const daysLeft = !isNaN(examDate.getTime()) ? differenceInCalendarDays(examDate, new Date()) : 0;
+  const isUrgent = daysLeft <= 3 && daysLeft >= 0;
 
   const priorityStyles = {
     low: {
@@ -465,13 +497,19 @@ const ExamCard = React.memo(({ exam, onEdit, onDelete }: { exam: Exam; onEdit: (
           <div className="flex items-center gap-2">
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">
-              {format(new Date(exam.dateTime), 'EEEE, MMM d')}
+              {(() => {
+                const date = new Date(exam.dateTime);
+                return !isNaN(date.getTime()) ? format(date, 'EEEE, MMM d') : 'Invalid Date';
+              })()}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">
-              {format(new Date(exam.dateTime), 'p')}
+              {(() => {
+                const date = new Date(exam.dateTime);
+                return !isNaN(date.getTime()) ? format(date, 'p') : '--:--';
+              })()}
             </span>
           </div>
           <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 sm:ml-auto bg-brand-50 dark:bg-brand-900/20 px-3 py-1.5 rounded-xl">
