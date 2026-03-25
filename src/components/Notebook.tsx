@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
-import { cn } from '../lib/utils';
+import { cn, generateId } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { NoteSkeleton } from './Skeleton';
 import { Note } from '../types';
@@ -164,7 +164,7 @@ export default function Notebook() {
 
   const handleCreate = async () => {
     const newNote = {
-      id: Math.random().toString(36).substring(7),
+      id: generateId(),
       title: '',
       content: '',
       isPinned: false,

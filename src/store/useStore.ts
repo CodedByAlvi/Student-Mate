@@ -216,14 +216,10 @@ export const useStore = create<AppState>((set, get) => ({
     const title = note.title?.trim() || '';
     const content = note.content?.trim() || '';
     
-    if (!title && !content) {
-      toast.error('Note cannot be empty');
-      return;
-    }
     const { notes } = get();
     const newNote = {
       ...note,
-      id: generateId(),
+      id: note.id || generateId(),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
