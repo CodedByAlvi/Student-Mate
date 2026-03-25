@@ -4,14 +4,19 @@ import ToDo from './ToDo';
 import Reminders from './Reminders';
 import { CheckSquare, Bell } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useDevice } from '../hooks/useDevice';
 
 export default function Tasks() {
   const activeSubTab = useStore(state => state.activeSubTab);
   const setActiveSubTab = useStore(state => state.setActiveSubTab);
+  const { isTablet, isDesktop } = useDevice();
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 pb-20">
-      <header className="px-4 sm:px-6 space-y-2">
+    <div className={cn(
+      "mx-auto space-y-8 pb-24 transition-all duration-500",
+      isTablet || isDesktop ? "max-w-4xl px-8" : "max-w-3xl px-4 sm:px-6"
+    )}>
+      <header className="space-y-2">
         <div className="flex items-center gap-3">
           <div className="h-1.5 w-8 rounded-full bg-brand-600" />
           <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] sm:tracking-[0.4em] text-stone-400">Productivity Hub</h2>
@@ -20,8 +25,11 @@ export default function Tasks() {
         <p className="text-stone-500 dark:text-stone-400 text-sm sm:text-base">Manage your daily to-dos and set important reminders.</p>
       </header>
 
-      <div className="px-4 sm:px-6">
-        <div className="flex items-center gap-1 rounded-[1.5rem] bg-stone-100 p-1.5 dark:bg-stone-900 border border-stone-200/50 dark:border-stone-800/50">
+      <div className="">
+        <div className={cn(
+          "flex items-center gap-1 rounded-[1.5rem] bg-stone-100 p-1.5 dark:bg-stone-900 border border-stone-200/50 dark:border-stone-800/50 transition-all duration-300",
+          (isTablet || isDesktop) && "max-w-md mx-auto"
+        )}>
           <button
             onClick={() => setActiveSubTab('todo')}
             className={cn(

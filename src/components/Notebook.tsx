@@ -13,212 +13,83 @@ import toast from 'react-hot-toast';
 import { NoteSkeleton } from './Skeleton';
 import { Note } from '../types';
 import Markdown from 'react-markdown';
-
-const COLORS = [
-  { name: 'Default', value: 'transparent' },
-  { name: 'Blue', value: '#dbeafe' },
-  { name: 'Green', value: '#dcfce7' },
-  { name: 'Yellow', value: '#fef9c3' },
-  { name: 'Red', value: '#fee2e2' },
-  { name: 'Purple', value: '#f3e8ff' },
-  { name: 'Pink', value: '#fce7f3' },
-];
+import { useDevice } from '../hooks/useDevice';
 
 const NoteCard = memo(({ 
   note, 
+  viewMode, 
   onEdit, 
-  onDelete, 
   onPin, 
-  viewMode 
+  onDelete 
 }: { 
   note: Note; 
-  onEdit: (id: string) => void; 
-  onDelete: (id: string) => void; 
-  onPin: (id: string, isPinned: boolean) => void;
   viewMode: 'grid' | 'list';
+  onEdit: (id: string) => void;
+  onPin: (id: string, isPinned: boolean) => void;
+  onDelete: (id: string) => void;
 }) => {
-  if (viewMode === 'list') {
-    return (
-      <motion.div 
-        layout
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 20 }}
-        onClick={() => onEdit(note.id)}
-        className="group relative flex items-center gap-6 rounded-2xl border border-stone-200 bg-white p-4 transition-all hover:border-stone-900 hover:shadow-md dark:border-stone-800 dark:bg-stone-900/40 dark:hover:border-stone-600 cursor-pointer"
-      >
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-stone-50 dark:bg-stone-800">
-          <FileText className="h-5 w-5 text-stone-400" />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1">
-            <h3 className="font-display font-bold text-stone-900 dark:text-stone-50 truncate">
-              {note.title || 'Untitled Note'}
-            </h3>
-            {note.isPinned && <Pin className="h-3 w-3 text-amber-500 fill-current" />}
-          </div>
-          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-stone-400">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {(() => {
-                const date = new Date(note.updatedAt);
-                return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid Date';
-              })()}
-            </div>
-            {note.tags && note.tags.length > 0 && (
-              <div className="flex items-center gap-1">
-                <Tag className="h-3 w-3" />
-                {note.tags.length} Tags
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0 ml-auto">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onPin(note.id, !note.isPinned);
-            }}
-            className={cn(
-              "rounded-full p-2 transition-all",
-              note.isPinned 
-                ? "text-amber-500 bg-amber-50 dark:bg-amber-900/20" 
-                : "text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 opacity-0 group-hover:opacity-100"
-            )}
-            title={note.isPinned ? "Unpin Note" : "Pin Note"}
-          >
-            <Pin className={cn("h-4 w-4", note.isPinned && "fill-current")} />
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(note.id);
-            }}
-            className="rounded-full p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-white transition-all opacity-0 group-hover:opacity-100"
-            title="Edit Note"
-          >
-            <Edit3 className="h-4 w-4" />
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(note.id);
-            }}
-            className="rounded-full p-2 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-900/20 transition-all opacity-0 group-hover:opacity-100"
-            title="Delete Note"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </motion.div>
-    );
-  }
-
   return (
-    <motion.div 
+    <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -4 }}
       onClick={() => onEdit(note.id)}
       className={cn(
-        "group relative flex flex-col rounded-[2.5rem] border border-stone-200 bg-white transition-all hover:border-stone-900 hover:shadow-2xl dark:border-stone-800 dark:bg-stone-900/40 dark:hover:border-stone-600 h-[260px] p-8 cursor-pointer",
-        note.color && note.color !== 'transparent' && "border-opacity-50"
+        "group relative cursor-pointer overflow-hidden rounded-[2rem] border border-stone-200 bg-white p-6 transition-all hover:border-stone-900 hover:shadow-2xl hover:shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-white dark:hover:shadow-white/5",
+        viewMode === 'list' && "flex items-center gap-6 py-4"
       )}
-      style={{ backgroundColor: note.color !== 'transparent' ? `${note.color}10` : undefined }}
     >
-      {note.color && note.color !== 'transparent' && (
-        <div 
-          className="absolute top-0 left-0 w-full h-2 rounded-t-full" 
-          style={{ backgroundColor: note.color }}
-        />
-      )}
-
-      <div className="flex items-center justify-between mb-6 gap-2">
-        <div className="rounded-full bg-stone-50 px-3 py-1 text-[9px] font-bold uppercase tracking-widest border border-stone-100 text-stone-400 dark:bg-stone-800 dark:border-stone-700 truncate min-w-0">
-          {note.subject || 'Note'}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-hidden">
-        <h3 className="font-display text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50 leading-tight group-hover:text-brand-600 transition-colors line-clamp-2 mb-3">
-          {note.title || 'Untitled Note'}
-        </h3>
-        <div className="text-stone-500 dark:text-stone-400 font-serif italic opacity-80 leading-relaxed line-clamp-4 text-sm prose prose-sm dark:prose-invert">
-          <Markdown>{note.content || 'Start capturing your academic insights...'}</Markdown>
-        </div>
-      </div>
-
-      <div className="mt-6 flex items-center justify-between pt-6 border-t border-stone-100 dark:border-stone-800/50">
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-300 dark:text-stone-600">Modified</span>
-            <span className="text-[10px] font-bold text-stone-500 dark:text-stone-400">
-              {(() => {
-                const date = new Date(note.updatedAt);
-                return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid Date';
-              })()}
+      <div className={cn(
+        "flex flex-1 flex-col gap-4",
+        viewMode === 'list' && "flex-row items-center justify-between"
+      )}>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-1 w-4 rounded-full bg-stone-200 dark:bg-stone-800 transition-colors group-hover:bg-stone-900 dark:group-hover:bg-white" />
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400">
+              {format(new Date(note.updatedAt), 'MMM d, yyyy')}
             </span>
           </div>
-          {note.tags && note.tags.length > 0 && (
-            <div className="flex -space-x-2 overflow-hidden">
-              {note.tags.slice(0, 3).map((tag, i) => (
-                <div 
-                  key={i}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-stone-100 text-[8px] font-bold uppercase text-stone-400 dark:border-stone-900 dark:bg-stone-800"
-                  title={tag}
-                >
-                  {tag[0]}
-                </div>
-              ))}
-              {note.tags.length > 3 && (
-                <div className="inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-stone-100 text-[8px] font-bold text-stone-400 dark:border-stone-900 dark:bg-stone-800">
-                  +{note.tags.length - 3}
-                </div>
-              )}
-            </div>
+          <h3 className="font-display text-xl font-bold tracking-tight text-stone-900 dark:text-white line-clamp-1">
+            {note.title || 'Untitled Note'}
+          </h3>
+          {viewMode === 'grid' && (
+            <p className="text-sm leading-relaxed text-stone-500 dark:text-stone-400 line-clamp-3 font-serif">
+              {note.content || 'No content yet...'}
+            </p>
           )}
         </div>
-        
-        <div className="flex items-center gap-1 shrink-0">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onPin(note.id, !note.isPinned);
-            }}
-            className={cn(
-              "rounded-full p-2 transition-all",
-              note.isPinned 
-                ? "text-amber-500 bg-amber-50 dark:bg-amber-900/20 shadow-sm" 
-                : "text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 opacity-0 group-hover:opacity-100"
-            )}
-            title={note.isPinned ? "Unpin Note" : "Pin Note"}
-          >
-            <Pin className={cn("h-4 w-4", note.isPinned && "fill-current")} />
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(note.id);
-            }}
-            className="rounded-full p-2 text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 opacity-0 group-hover:opacity-100 transition-all"
-            title="Edit Note"
-          >
-            <Edit3 className="h-4 w-4" />
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(note.id);
-            }}
-            className="rounded-full p-2 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-900/20 opacity-0 group-hover:opacity-100 transition-all"
-            title="Delete Note"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPin(note.id, !note.isPinned);
+              }}
+              className={cn(
+                "rounded-full p-2 transition-all",
+                note.isPinned ? "bg-amber-50 text-amber-600 dark:bg-amber-900/20" : "text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+              )}
+            >
+              <Pin className={cn("h-4 w-4", note.isPinned && "fill-current")} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(note.id);
+              }}
+              className="rounded-full p-2 text-stone-300 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-300">
+            <FileText className="h-3 w-3" />
+            <span>{note.content.split(/\s+/).filter(Boolean).length} words</span>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -234,6 +105,7 @@ export default function Notebook() {
   const deleteNote = useStore(state => state.deleteNote);
   const isLoading = useStore(state => state.isLoading);
   const setConfirmModal = useStore(state => state.setConfirmModal);
+  const { isTablet, isDesktop } = useDevice();
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -241,99 +113,77 @@ export default function Notebook() {
   const [isStudyMode, setIsStudyMode] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isPreview, setIsPreview] = useState(false);
-  
-  // Local state for editor
   const [localTitle, setLocalTitle] = useState('');
   const [localContent, setLocalContent] = useState('');
-  const [localColor, setLocalColor] = useState('transparent');
-  const [localTags, setLocalTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
-  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const currentNote = useMemo(() => notes.find(n => n.id === editingNoteId), [notes, editingNoteId]);
+  const filteredNotes = useMemo(() => {
+    return notes.filter(note => 
+      note.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      note.content.toLowerCase().includes(debouncedSearch.toLowerCase())
+    ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }, [notes, debouncedSearch]);
 
-  const wordCount = useMemo(() => localContent.trim() ? localContent.trim().split(/\s+/).length : 0, [localContent]);
-  const charCount = useMemo(() => localContent.length, [localContent]);
+  const pinnedNotes = useMemo(() => filteredNotes.filter(n => n.isPinned), [filteredNotes]);
+  const otherNotes = useMemo(() => filteredNotes.filter(n => !n.isPinned), [filteredNotes]);
+
+  const currentNote = useMemo(() => 
+    notes.find(n => n.id === editingNoteId), 
+    [notes, editingNoteId]
+  );
 
   useEffect(() => {
-    if (currentNote && editingNoteId) {
+    if (currentNote) {
       setLocalTitle(currentNote.title);
       setLocalContent(currentNote.content);
-      setLocalColor(currentNote.color || 'transparent');
-      setLocalTags(currentNote.tags || []);
     }
-  }, [editingNoteId, currentNote?.id]);
+  }, [currentNote]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = async () => {
     if (!editingNoteId) return;
     setIsSaving(true);
     try {
-      await updateNote(editingNoteId, { 
-        title: localTitle, 
+      await updateNote(editingNoteId, {
+        title: localTitle,
         content: localContent,
-        color: localColor,
-        tags: localTags
+        updatedAt: new Date().toISOString()
       });
+      toast.success('Note saved');
     } catch (error) {
       toast.error('Failed to save note');
     } finally {
       setIsSaving(false);
     }
-  }, [editingNoteId, localTitle, localContent, localColor, localTags, updateNote]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (editingNoteId && currentNote && (
-        localTitle !== currentNote.title || 
-        localContent !== currentNote.content ||
-        localColor !== currentNote.color ||
-        JSON.stringify(localTags) !== JSON.stringify(currentNote.tags || [])
-      )) {
-        handleSave();
-      }
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [localTitle, localContent, localColor, localTags, editingNoteId, currentNote, handleSave]);
-
-  const filteredNotes = useMemo(() => notes.filter(n => 
-    n.title.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
-    n.content.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-    n.tags?.some(t => t.toLowerCase().includes(debouncedSearch.toLowerCase()))
-  ), [notes, debouncedSearch]);
-
-  const handleCreate = async (title = 'New Note', content = '') => {
-    try {
-      await addNote({ title, content, isPinned: false, color: 'transparent', tags: [] });
-      toast.success('New note created');
-    } catch (error) {
-      toast.error('Failed to create note');
-    }
   };
 
-  const addTag = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
-      e.preventDefault();
-      if (!localTags.includes(tagInput.trim())) {
-        setLocalTags([...localTags, tagInput.trim()]);
-      }
-      setTagInput('');
-    }
+  const handleCreate = async () => {
+    const newNote = {
+      id: Math.random().toString(36).substring(7),
+      title: '',
+      content: '',
+      isPinned: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      tags: []
+    };
+    await addNote(newNote);
+    setEditingNoteId(newNote.id);
+    setIsPreview(false);
   };
 
-  const removeTag = (tagToRemove: string) => {
-    setLocalTags(localTags.filter(t => t !== tagToRemove));
+  const handleCancel = () => {
+    setEditingNoteId(null);
+    setIsStudyMode(false);
   };
 
-  const pinnedNotes = useMemo(() => filteredNotes.filter(n => n.isPinned), [filteredNotes]);
-  const otherNotes = useMemo(() => filteredNotes.filter(n => !n.isPinned), [filteredNotes]);
+  const wordCount = localContent.split(/\s+/).filter(Boolean).length;
+  const charCount = localContent.length;
 
   if (editingNoteId && currentNote) {
     return (
@@ -347,98 +197,67 @@ export default function Notebook() {
       >
         <div className={cn(
           "mx-auto h-full flex flex-col transition-all duration-500",
-          isStudyMode ? "max-w-3xl p-4 sm:p-12 lg:p-24" : "max-w-5xl p-4 sm:p-6 lg:p-12 gap-6 sm:gap-12"
+          isStudyMode ? "max-w-4xl p-4 pt-20 sm:p-12 lg:p-24" : "max-w-6xl p-4 pt-20 sm:p-6 lg:p-12 gap-6 sm:gap-12"
         )}>
-          <AnimatePresence>
-            {!isStudyMode && (
-              <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <button 
+                onClick={handleCancel}
+                className="group flex items-center gap-2 sm:gap-3 rounded-full bg-white px-3 sm:px-4 py-2 text-stone-500 shadow-sm transition-all hover:bg-stone-100 hover:text-stone-900 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 border border-stone-200 dark:border-stone-800"
               >
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => {
-                      handleSave();
-                      setEditingNoteId(null);
-                    }}
-                    className="group flex items-center gap-3 rounded-full bg-white px-4 py-2 text-stone-500 shadow-sm transition-all hover:bg-stone-100 hover:text-stone-900 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 border border-stone-200 dark:border-stone-800"
-                  >
-                    <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Back</span>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => setIsPreview(!isPreview)}
-                      className={cn(
-                        "flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all",
-                        isPreview ? "bg-stone-900 text-white dark:bg-white dark:text-black" : "bg-white text-stone-500 hover:bg-stone-100 dark:bg-stone-900 dark:hover:bg-stone-800"
-                      )}
-                    >
-                      {isPreview ? <Edit3 className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      {isPreview ? 'Edit' : 'Preview'}
-                    </button>
-                  </div>
-                </div>
+                <ChevronLeft className="h-3.5 w-3.5 sm:h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.1em] sm:tracking-[0.2em]">Cancel</span>
+              </button>
+              <button 
+                onClick={async () => {
+                  await handleSave();
+                  setEditingNoteId(null);
+                  setIsStudyMode(false);
+                }}
+                disabled={isSaving}
+                className="flex items-center gap-1.5 sm:gap-2 rounded-full bg-brand-600 px-4 sm:px-6 py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-white shadow-lg shadow-brand-600/20 transition-all hover:bg-brand-700 active:scale-95 disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" /> : <Save className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+                Save
+              </button>
+              <div className="h-4 w-px bg-stone-200 dark:bg-stone-800 hidden sm:block" />
+              <button 
+                onClick={() => setIsPreview(!isPreview)}
+                className={cn(
+                  "flex items-center gap-1.5 sm:gap-2 rounded-full px-3 sm:px-4 py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all",
+                  isPreview ? "bg-stone-900 text-white dark:bg-white dark:text-black" : "bg-white text-stone-500 hover:bg-stone-100 dark:bg-stone-900 dark:hover:bg-stone-800"
+                )}
+              >
+                {isPreview ? <Edit3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+                {isPreview ? 'Edit' : 'Preview'}
+              </button>
+            </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6">
-                  <div className="flex items-center gap-2.5">
-                    <div className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      isSaving ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
-                    )} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">
-                      {isSaving ? 'Syncing...' : 'Saved'}
-                    </span>
-                  </div>
-                  <div className="h-4 w-px bg-stone-200 dark:bg-stone-800" />
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 mr-2">
-                      {COLORS.map(c => (
-                        <button
-                          key={c.value}
-                          onClick={() => setLocalColor(c.value)}
-                          className={cn(
-                            "h-5 w-5 rounded-full border transition-all",
-                            localColor === c.value ? "scale-125 border-stone-900 dark:border-white" : "border-transparent hover:scale-110"
-                          )}
-                          style={{ backgroundColor: c.value === 'transparent' ? '#e5e7eb' : c.value }}
-                          title={c.name}
-                        />
-                      ))}
-                    </div>
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${localTitle}\n\n${localContent}`);
-                        toast.success('Note copied as Markdown');
-                      }}
-                      className="rounded-full p-2.5 text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors"
-                      title="Copy Markdown"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => setIsStudyMode(true)}
-                      className="rounded-full p-2.5 text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors"
-                      title="Enter Focus Mode"
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {isStudyMode && (
-            <button 
-              onClick={() => setIsStudyMode(false)}
-              className="fixed top-4 right-4 sm:top-8 sm:right-8 lg:top-12 lg:right-12 rounded-full p-4 text-stone-300 hover:text-stone-900 dark:hover:text-white transition-all hover:bg-stone-100 dark:hover:bg-stone-900 z-[70]"
-            >
-              <Minimize2 className="h-6 w-6" />
-            </button>
-          )}
+            <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6">
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${localTitle}\n\n${localContent}`);
+                    toast.success('Note copied as Markdown');
+                  }}
+                  className="rounded-full p-2.5 text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors"
+                  title="Copy Markdown"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={() => setIsStudyMode(!isStudyMode)}
+                  className={cn(
+                    "rounded-full p-2.5 transition-all",
+                    isStudyMode ? "bg-brand-100 text-brand-600 dark:bg-brand-900/30" : "text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800"
+                  )}
+                  title={isStudyMode ? "Exit Focus Mode" : "Enter Focus Mode"}
+                >
+                  {isStudyMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div className={cn(
             "flex-1 flex flex-col transition-all duration-500",
@@ -449,37 +268,9 @@ export default function Notebook() {
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">
                   <Clock className="h-3 w-3" />
                   <span>
-                    {(() => {
-                      const date = new Date(currentNote.updatedAt);
-                      return !isNaN(date.getTime()) ? format(date, 'MMMM d, yyyy') : 'Invalid Date';
-                    })()}
+                    {format(new Date(currentNote.updatedAt), 'MMMM d, yyyy')}
                   </span>
                 </div>
-                {!isStudyMode && (
-                  <div className="flex flex-wrap gap-2">
-                    {localTags.map(tag => (
-                      <span 
-                        key={tag}
-                        className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-stone-500 dark:bg-stone-800 dark:text-stone-400"
-                      >
-                        {tag}
-                        <button onClick={() => removeTag(tag)} className="hover:text-rose-500">
-                          <Trash2 className="h-2.5 w-2.5" />
-                        </button>
-                      </span>
-                    ))}
-                    <div className="relative">
-                      <Hash className="absolute left-2 top-1/2 h-2.5 w-2.5 -translate-y-1/2 text-stone-400" />
-                      <input 
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={addTag}
-                        placeholder="Add tag..."
-                        className="rounded-full border border-stone-200 bg-white py-0.5 pl-6 pr-3 text-[9px] font-bold uppercase tracking-widest outline-none focus:border-stone-900 dark:border-stone-800 dark:bg-stone-900 dark:focus:border-white"
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
               <input 
                 value={localTitle}
@@ -593,7 +384,7 @@ export default function Notebook() {
   }
 
   return (
-    <div className="space-y-8 sm:space-y-12 px-4 sm:px-6 pb-24 max-w-6xl mx-auto">
+    <div className="space-y-8 sm:space-y-12 px-4 sm:px-6 pb-24 max-w-full mx-auto">
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -649,8 +440,9 @@ export default function Notebook() {
         {isLoading && notes.length === 0 && (
           <div className={cn(
             "grid gap-6 sm:gap-8",
-            viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+            viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
           )}>
+            <NoteSkeleton />
             <NoteSkeleton />
             <NoteSkeleton />
           </div>
@@ -664,7 +456,7 @@ export default function Notebook() {
             </div>
             <div className={cn(
               "grid gap-6 sm:gap-8",
-              viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+              viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
             )}>
               <AnimatePresence mode="popLayout">
                 {pinnedNotes.map((note) => (
@@ -704,7 +496,7 @@ export default function Notebook() {
             )}
             <div className={cn(
               "grid gap-6 sm:gap-8",
-              viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+              viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
             )}>
               <AnimatePresence mode="popLayout">
                 {otherNotes.map((note) => (

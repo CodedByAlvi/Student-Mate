@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
 import { Note, Task, Reminder, UserProfile, FocusSession, Exam, StudyLog, SubjectStats, StudyPlan, StudyPlanItem } from '../types';
+import { generateId, parseDate, isValidDate } from '../lib/utils';
 
-const STORAGE_KEY = 'student-mate-data';
+const STORAGE_KEY = 'student-mate-data-v1';
 
 const DEFAULT_USER: UserProfile = {
   uid: 'local-user',
@@ -79,6 +80,7 @@ interface AppState {
   startSync: (uid: string) => void;
   stopSync: () => void;
   loadLocalData: () => void;
+  forceSave: () => void;
 }
 
 const saveToStorage = (state: Partial<AppState>) => {
@@ -134,7 +136,20 @@ export const useStore = create<AppState>((set, get) => ({
 
   loadLocalData: () => {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
+      let data = localStorage.getItem(STORAGE_KEY);
+      
+      // Migration from old key
+      if (!data) {
+        const oldData = localStorage.getItem('student-mate-data');
+        if (oldData) {
+          data = oldData;
+          // Save to new key immediately
+          localStorage.setItem(STORAGE_KEY, oldData);
+          // Optional: localStorage.removeItem('student-mate-data'); 
+          // Keeping it for now for safety during transition
+        }
+      }
+
       if (data) {
         const parsed = JSON.parse(data);
         if (parsed && typeof parsed === 'object') {
@@ -158,6 +173,10 @@ export const useStore = create<AppState>((set, get) => ({
       console.error('Failed to load local data', e);
       set({ isLoading: false });
     }
+  },
+
+  forceSave: () => {
+    saveToStorage(get());
   },
 
   setUser: (user) => {
@@ -204,13 +223,13 @@ export const useStore = create<AppState>((set, get) => ({
     const { notes } = get();
     const newNote = {
       ...note,
-      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+      id: generateId(),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isPinned: note.isPinned || false,
       title: title.slice(0, 200) || 'Untitled Note',
-      content: content.slice(0, 10000),
+      content: content.slice(0, 50000), // Increased for large notes
     } as Note;
     set({ notes: [newNote, ...notes] });
     debouncedSaveToStorage(get());
@@ -221,7 +240,7 @@ export const useStore = create<AppState>((set, get) => ({
       ...n, 
       ...note, 
       title: note.title !== undefined ? note.title.slice(0, 200) : n.title,
-      content: note.content !== undefined ? note.content.slice(0, 10000) : n.content,
+      content: note.content !== undefined ? note.content.slice(0, 50000) : n.content,
       updatedAt: new Date().toISOString() 
     } : n);
     set({ notes: updatedNotes });
@@ -242,7 +261,7 @@ export const useStore = create<AppState>((set, get) => ({
     const { tasks } = get();
     const newTask = {
       ...task,
-      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+      id: generateId(),
       userId: 'local-user',
       isCompleted: false,
       createdAt: new Date().toISOString(),
@@ -276,7 +295,7 @@ export const useStore = create<AppState>((set, get) => ({
     const { reminders } = get();
     const newReminder = {
       ...reminder,
-      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+      id: generateId(),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       title: reminder.title.slice(0, 500),
@@ -304,7 +323,7 @@ export const useStore = create<AppState>((set, get) => ({
     const { focusSessions } = get();
     const newSession = {
       ...session,
-      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+      id: generateId(),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
     } as FocusSession;
@@ -320,7 +339,7 @@ export const useStore = create<AppState>((set, get) => ({
     const { exams } = get();
     const newExam = {
       ...exam,
-      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+      id: generateId(),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       subject: exam.subject.slice(0, 100),
@@ -352,7 +371,7 @@ export const useStore = create<AppState>((set, get) => ({
     const { studyLogs } = get();
     const newLog = {
       ...log,
-      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+      id: generateId(),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
       subject: log.subject.slice(0, 100),
@@ -388,8 +407,9 @@ export const useStore = create<AppState>((set, get) => ({
       const confidence = Math.min(100, (totalStudyTime / 300) * 50 + (taskCompletionRate * 0.5));
       
       const upcomingExam = subjectExams.find(e => {
+        if (!isValidDate(e.dateTime)) return false;
         const examDate = new Date(e.dateTime);
-        return !isNaN(examDate.getTime()) && examDate > new Date();
+        return examDate > new Date();
       });
       
       const daysToExam = upcomingExam 

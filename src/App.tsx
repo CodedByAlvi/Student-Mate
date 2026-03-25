@@ -25,11 +25,19 @@ export default function App() {
   const activeTab = useStore(state => state.activeTab);
   const setActiveTab = useStore(state => state.setActiveTab);
   const loadLocalData = useStore(state => state.loadLocalData);
+  const forceSave = useStore(state => state.forceSave);
 
   // Load local data on mount
   useEffect(() => {
     loadLocalData();
-  }, [loadLocalData]);
+    
+    // Force save on exit
+    const handleBeforeUnload = () => {
+      forceSave();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [loadLocalData, forceSave]);
 
   // Apply Theme
   useEffect(() => {

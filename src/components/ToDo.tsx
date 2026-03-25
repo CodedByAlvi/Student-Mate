@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { Priority } from '../types';
+import { useDevice } from '../hooks/useDevice';
 
 export default function ToDo() {
   const tasks = useStore(state => state.tasks);
@@ -12,6 +13,7 @@ export default function ToDo() {
   const updateTask = useStore(state => state.updateTask);
   const deleteTask = useStore(state => state.deleteTask);
   const setConfirmModal = useStore(state => state.setConfirmModal);
+  const { isTablet, isDesktop } = useDevice();
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [search, setSearch] = useState('');
@@ -93,29 +95,29 @@ export default function ToDo() {
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 placeholder="What needs to be done?"
-                className="w-full rounded-2xl border-none bg-stone-50 py-5 pl-6 pr-16 text-lg font-bold tracking-tight text-stone-900 shadow-inner outline-none transition-all focus:ring-2 focus:ring-brand-500 dark:bg-stone-950 dark:text-white"
+                className="w-full rounded-2xl border-none bg-stone-50 py-4 sm:py-5 pl-5 sm:pl-6 pr-14 sm:pr-16 text-base sm:text-lg font-bold tracking-tight text-stone-900 shadow-inner outline-none transition-all focus:ring-2 focus:ring-brand-500 dark:bg-stone-950 dark:text-white"
               />
               <button 
                 type="submit"
                 disabled={!newTaskTitle.trim()}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-xl bg-brand-600 p-3 text-white shadow-xl shadow-brand-600/20 transition-all hover:bg-brand-700 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl bg-brand-600 p-2.5 sm:p-3 text-white shadow-xl shadow-brand-600/20 transition-all hover:bg-brand-700 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
               >
-                <Plus className="h-6 w-6" />
+                <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
             </div>
           </div>
           
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4 bg-stone-50 dark:bg-stone-950 px-6 py-3 rounded-2xl shadow-inner">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 bg-stone-50 dark:bg-stone-950 px-4 sm:px-6 py-3 rounded-2xl shadow-inner">
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400 whitespace-nowrap">Priority</span>
-              <div className="flex gap-2">
+              <div className="flex flex-1 items-center justify-between sm:justify-start gap-1.5 sm:gap-2">
                 {(['low', 'medium', 'high'] as Priority[]).map((p) => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => setPriority(p)}
                     className={cn(
-                      "rounded-lg px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
+                      "rounded-lg px-3 sm:px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
                       priority === p 
                         ? (p === 'high' ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" :
                            p === 'medium' ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" :
@@ -132,7 +134,10 @@ export default function ToDo() {
         </motion.form>
       </div>
 
-      <div className="space-y-3">
+      <div className={cn(
+        "space-y-3",
+        (isTablet || isDesktop) && "grid grid-cols-2 gap-6 space-y-0"
+      )}>
         <AnimatePresence mode="popLayout">
           {filteredTasks.map((task) => (
             <motion.div 

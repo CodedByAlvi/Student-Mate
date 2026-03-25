@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ACCENT_COLORS, AccentColor } from '../constants';
+import { useDevice } from '../hooks/useDevice';
 
 const POMODORO_TIME = 25 * 60;
 const DEEP_FOCUS_TIME = 50 * 60;
@@ -19,6 +20,7 @@ const MICRO_BREAK = 2 * 60;
 
 export default function FocusMode() {
   const { user, focusSessions, addFocusSession, addStudyLog, setIsFocusActive } = useStore();
+  const { isTablet, isDesktop } = useDevice();
   const [mode, setMode] = useState<'pomodoro' | 'deep-focus' | 'quick-focus' | 'power-focus' | 'ultra-focus' | 'short-break' | 'long-break' | 'extended-break' | 'micro-break'>('pomodoro');
   const [timeLeft, setTimeLeft] = useState(POMODORO_TIME);
   const [isActive, setIsActive] = useState(false);
@@ -54,7 +56,11 @@ export default function FocusMode() {
       const elapsed = Math.floor((now - startTimeRef.current) / 1000);
       const nextTime = Math.max(0, baseTimeRef.current - elapsed);
       
-      setTimeLeft(nextTime);
+      // Only update state if the second has actually changed
+      setTimeLeft(prev => {
+        if (prev !== nextTime) return nextTime;
+        return prev;
+      });
       
       if (nextTime === 0) {
         handleTimerComplete();
@@ -175,9 +181,12 @@ export default function FocusMode() {
   const COLORS = [brandColor, '#e5e7eb'];
 
   return (
-    <div className="space-y-8 px-6 pb-20">
+    <div className={cn(
+      "space-y-8 px-6 pb-24 transition-all duration-500",
+      isTablet || isDesktop ? "max-w-6xl mx-auto" : "max-w-xl mx-auto"
+    )}>
       <header className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-bold">Focus Mode</h1>
+        <h1 className="font-display text-3xl sm:text-5xl font-bold tracking-tight">Focus Mode</h1>
         <button 
           onClick={() => setShowStats(!showStats)}
           className={cn(
@@ -196,43 +205,86 @@ export default function FocusMode() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
+            className={cn(
+              "space-y-6",
+              (isTablet || isDesktop) && "grid grid-cols-2 gap-8 space-y-0"
+            )}
           >
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Today's Focus</p>
-                <h3 className="mt-1 text-2xl font-bold">{totalFocusMinutes}m</h3>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Today's Focus</p>
+                  <h3 className="mt-1 text-2xl font-bold">{totalFocusMinutes}m</h3>
+                </div>
+                <div className="rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Sessions</p>
+                  <h3 className="mt-1 text-2xl font-bold">{todaySessions.length}</h3>
+                </div>
               </div>
-              <div className="rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Sessions</p>
-                <h3 className="mt-1 text-2xl font-bold">{todaySessions.length}</h3>
-              </div>
-            </div>
 
-            <div className="rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
-              <h4 className="mb-4 font-bold">Daily Progress</h4>
-              <div className="h-[200px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div className="rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
+                <h4 className="mb-4 font-bold">Daily Progress</h4>
+                <div className="relative h-[200px] w-full">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-3xl font-bold tracking-tighter">{totalFocusMinutes}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Minutes</span>
+                  </div>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={85}
+                        paddingAngle={8}
+                        dataKey="value"
+                        stroke="none"
+                        cornerRadius={10}
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: 'none', 
+                          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          backdropFilter: 'blur(8px)'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="mt-4 text-center text-xs text-stone-500">Goal: 150 minutes focus per day</p>
               </div>
-              <p className="text-center text-xs text-stone-500">Goal: 150 minutes focus per day</p>
             </div>
+            
+            {(isTablet || isDesktop) && (
+              <div className="flex flex-col justify-center gap-8">
+                <div className="rounded-3xl border border-stone-200 bg-white p-8 dark:border-stone-800 dark:bg-stone-900 shadow-sm">
+                  <h4 className="text-xl font-bold mb-4">Focus Insights</h4>
+                  <p className="text-stone-500 leading-relaxed">
+                    You've completed <span className="text-brand-600 font-bold">{todaySessions.length} sessions</span> today. 
+                    Consistency is key to mastering new subjects. Keep up the great work!
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-stone-200 bg-white p-8 dark:border-stone-800 dark:bg-stone-900 shadow-sm">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="rounded-2xl bg-brand-50 p-3 text-brand-600 dark:bg-brand-900/20">
+                      <Brain className="h-6 w-6" />
+                    </div>
+                    <h4 className="text-xl font-bold">Productivity Tip</h4>
+                  </div>
+                  <p className="text-stone-500 leading-relaxed">
+                    Taking regular breaks actually improves focus and retention. 
+                    Try the Pomodoro technique for optimal results.
+                  </p>
+                </div>
+              </div>
+            )}
           </motion.div>
         ) : (
           <motion.div
@@ -240,90 +292,107 @@ export default function FocusMode() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="flex flex-col items-center gap-8"
+            className={cn(
+              "flex flex-col items-center gap-8",
+              (isTablet || isDesktop) && "flex-row items-center justify-center gap-20"
+            )}
           >
-            <div className="flex flex-col gap-6 w-full max-w-md">
-              <div className="flex flex-wrap gap-1 rounded-2xl bg-stone-100 p-1 dark:bg-stone-900">
-                {(['pomodoro', 'deep-focus', 'quick-focus', 'power-focus', 'ultra-focus', 'short-break', 'long-break', 'extended-break', 'micro-break'] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => switchMode(m)}
-                    className={cn(
-                      "flex-1 min-w-[80px] rounded-xl px-2 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all",
-                      mode === m 
-                        ? "bg-white text-stone-900 shadow-sm dark:bg-stone-800 dark:text-stone-50" 
-                        : "text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
-                    )}
-                  >
-                    {m.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                  </button>
-                ))}
+            <div className="flex flex-col items-center gap-8">
+              <div className="flex flex-col gap-6 w-full max-w-md">
+                <div className="flex flex-wrap gap-1 rounded-2xl bg-stone-100 p-1 dark:bg-stone-900">
+                  {(['pomodoro', 'deep-focus', 'quick-focus', 'power-focus', 'ultra-focus', 'short-break', 'long-break', 'extended-break', 'micro-break'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => switchMode(m)}
+                      className={cn(
+                        "flex-1 min-w-[80px] rounded-xl px-2 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all",
+                        mode === m 
+                          ? "bg-white text-stone-900 shadow-sm dark:bg-stone-800 dark:text-stone-50" 
+                          : "text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+                      )}
+                    >
+                      {m.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative flex h-56 w-56 sm:h-80 sm:w-80 items-center justify-center">
+                <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 288 288">
+                  <circle
+                    cx="144"
+                    cy="144"
+                    r="130"
+                    stroke="currentColor"
+                    strokeWidth="10"
+                    fill="transparent"
+                    className="text-stone-100 dark:text-stone-900"
+                  />
+                  <motion.circle
+                    cx="144"
+                    cy="144"
+                    r="130"
+                    stroke="currentColor"
+                    strokeWidth="10"
+                    fill="transparent"
+                    strokeDasharray={2 * Math.PI * 130}
+                    animate={{ 
+                      strokeDashoffset: 2 * Math.PI * 130 * (1 - progress / 100) 
+                    }}
+                    transition={{ duration: 1, ease: "linear" }}
+                    className="text-brand-600"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute text-center">
+                  <span className="font-display text-4xl sm:text-7xl font-bold tabular-nums tracking-tight">
+                    {minutes}:{seconds.toString().padStart(2, '0')}
+                  </span>
+                  <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400">
+                    {mode === 'pomodoro' || mode === 'deep-focus' ? 'Focusing' : 'Resting'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 sm:gap-10">
+                <button 
+                  onClick={resetTimer}
+                  className="rounded-full bg-stone-100 p-3 sm:p-5 text-stone-600 transition-all hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800"
+                >
+                  <RotateCcw className="h-5 w-5 sm:h-8 sm:w-8" />
+                </button>
+                <button 
+                  onClick={toggleTimer}
+                  className="flex h-16 w-16 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-brand-600 text-white shadow-xl shadow-brand-600/20 transition-all hover:bg-brand-700 active:scale-95"
+                >
+                  {isActive ? <Pause className="h-6 w-6 sm:h-10 sm:w-10" /> : <Play className="h-6 w-6 sm:h-10 sm:w-10 translate-x-0.5" />}
+                </button>
+                <div className="w-10 sm:w-14" /> {/* Spacer */}
               </div>
             </div>
 
-            <div className="relative flex h-56 w-56 sm:h-72 sm:w-72 items-center justify-center">
-              <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 288 288">
-                <circle
-                  cx="144"
-                  cy="144"
-                  r="130"
-                  stroke="currentColor"
-                  strokeWidth="10"
-                  fill="transparent"
-                  className="text-stone-100 dark:text-stone-900"
-                />
-                <motion.circle
-                  cx="144"
-                  cy="144"
-                  r="130"
-                  stroke="currentColor"
-                  strokeWidth="10"
-                  fill="transparent"
-                  strokeDasharray={2 * Math.PI * 130}
-                  animate={{ 
-                    strokeDashoffset: 2 * Math.PI * 130 * (1 - progress / 100) 
-                  }}
-                  transition={{ duration: 1, ease: "linear" }}
-                  className="text-brand-600"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <span className="font-display text-4xl sm:text-7xl font-bold tabular-nums tracking-tight">
-                  {minutes}:{seconds.toString().padStart(2, '0')}
-                </span>
-                <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400">
-                  {mode === 'pomodoro' || mode === 'deep-focus' ? 'Focusing' : 'Resting'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 sm:gap-6">
-              <button 
-                onClick={resetTimer}
-                className="rounded-full bg-stone-100 p-3 sm:p-4 text-stone-600 transition-all hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800"
-              >
-                <RotateCcw className="h-5 w-5 sm:h-6 sm:w-6" />
-              </button>
-              <button 
-                onClick={toggleTimer}
-                className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-brand-600 text-white shadow-xl shadow-brand-600/20 transition-all hover:bg-brand-700 active:scale-95"
-              >
-                {isActive ? <Pause className="h-6 w-6 sm:h-8 sm:w-8" /> : <Play className="h-6 w-6 sm:h-8 sm:w-8 translate-x-0.5" />}
-              </button>
-              <div className="w-10 sm:w-14" /> {/* Spacer */}
-            </div>
-
-            <div className="w-full space-y-4 rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-brand-50 p-2 text-brand-600 dark:bg-brand-900/20">
-                  <Brain className="h-5 w-5" />
+            <div className={cn(
+              "w-full space-y-4 rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900 transition-all duration-500",
+              (isTablet || isDesktop) && "max-w-md p-10"
+            )}>
+              <div className="flex items-center gap-4">
+                <div className="rounded-2xl bg-brand-50 p-3 text-brand-600 dark:bg-brand-900/20">
+                  <Brain className="h-6 w-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold">Deep Focus Tip</h4>
-                  <p className="text-xs text-stone-500">Put your phone away and close unnecessary tabs.</p>
+                  <h4 className="text-xl font-bold">Deep Focus Tip</h4>
+                  <p className="text-sm text-stone-500 leading-relaxed">Put your phone away and close unnecessary tabs to maximize your cognitive capacity.</p>
                 </div>
               </div>
+              {(isTablet || isDesktop) && (
+                <div className="pt-6 border-t border-stone-100 dark:border-stone-800">
+                  <h5 className="font-bold mb-2">Why this works?</h5>
+                  <p className="text-sm text-stone-500 leading-relaxed">
+                    The Pomodoro Technique helps you stay focused by breaking your work into manageable intervals, 
+                    preventing burnout and maintaining high mental energy.
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

@@ -5,12 +5,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
+import { useDevice } from '../hooks/useDevice';
 
 export default function Reminders() {
   const reminders = useStore(state => state.reminders);
   const addReminder = useStore(state => state.addReminder);
   const deleteReminder = useStore(state => state.deleteReminder);
   const setConfirmModal = useStore(state => state.setConfirmModal);
+  const { isTablet, isDesktop } = useDevice();
 
   const [showAddReminder, setShowAddReminder] = useState(false);
   const [title, setTitle] = useState('');
@@ -118,7 +120,10 @@ export default function Reminders() {
         )}
       </AnimatePresence>
 
-      <div className="space-y-4">
+      <div className={cn(
+        "space-y-4",
+        (isTablet || isDesktop) && "grid grid-cols-2 gap-6 space-y-0"
+      )}>
         {filteredReminders.map((reminder) => (
           <motion.div 
             layout

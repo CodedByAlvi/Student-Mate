@@ -17,12 +17,14 @@ import { format, formatDistanceToNow, isPast, differenceInHours, differenceInDay
 import { Exam, ExamType, Priority } from '../types';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
+import { useDevice } from '../hooks/useDevice';
 
 const EXAM_TYPES: ExamType[] = ['Midterm', 'Final', 'Test', 'Quiz', 'Assignment', 'Other'];
 const PRIORITIES: Priority[] = ['low', 'medium', 'high'];
 
 export default function Exams() {
   const { exams, addExam, updateExam, deleteExam, setConfirmModal } = useStore();
+  const { isTablet, isDesktop } = useDevice();
   const [isAdding, setIsAdding] = useState(false);
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [newExam, setNewExam] = useState<Partial<Exam>>({
@@ -99,7 +101,10 @@ export default function Exams() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-6 pb-20">
+    <div className={cn(
+      "mx-auto space-y-6 sm:space-y-8 pb-24 transition-all duration-500",
+      isTablet || isDesktop ? "max-w-6xl px-8" : "max-w-4xl px-4 sm:px-6"
+    )}>
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">Exam Countdown</h1>
@@ -150,7 +155,10 @@ export default function Exams() {
           Upcoming Exams
         </h2>
         
-        <div className="grid gap-6">
+        <div className={cn(
+          "grid gap-6",
+          (isTablet || isDesktop) && "grid-cols-2"
+        )}>
           <AnimatePresence mode="popLayout">
             {upcomingExams.length > 0 ? (
               upcomingExams.map((exam) => (
