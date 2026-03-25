@@ -31,6 +31,7 @@ interface AppState {
   isFocusActive: boolean;
   isLoading: boolean;
   isSyncing: boolean;
+  isUltraPerformanceMode: boolean;
   confirmModal: {
     isOpen: boolean;
     title: string;
@@ -44,6 +45,7 @@ interface AppState {
   setActiveTab: (tab: string) => void;
   setActiveSubTab: (subTab: 'todo' | 'reminders') => void;
   setIsFocusActive: (active: boolean) => void;
+  setIsUltraPerformanceMode: (active: boolean) => void;
   setConfirmModal: (modal: Partial<AppState['confirmModal']>) => void;
   closeConfirmModal: () => void;
   
@@ -108,9 +110,13 @@ const saveToStorage = (state: Partial<AppState>) => {
 let saveTimeout: any = null;
 const debouncedSaveToStorage = (state: Partial<AppState>) => {
   if (saveTimeout) clearTimeout(saveTimeout);
+  
+  // ULTRA PERFORMANCE MODE: Increase debounce time on low-end devices to reduce CPU usage
+  const debounceTime = state.isUltraPerformanceMode ? 3000 : 1000;
+  
   saveTimeout = setTimeout(() => {
     saveToStorage(state);
-  }, 1000);
+  }, debounceTime);
 };
 
 export const useStore = create<AppState>((set, get) => ({
@@ -127,6 +133,7 @@ export const useStore = create<AppState>((set, get) => ({
   isFocusActive: false,
   isLoading: false,
   isSyncing: false,
+  isUltraPerformanceMode: false,
   confirmModal: {
     isOpen: false,
     title: '',
@@ -136,22 +143,32 @@ export const useStore = create<AppState>((set, get) => ({
 
   loadLocalData: () => {
     try {
-      let data = localStorage.getItem(STORAGE_KEY);
+      const data = localStorage.getItem(STORAGE_KEY);
       
       // Migration from old key
       if (!data) {
         const oldData = localStorage.getItem('student-mate-data');
         if (oldData) {
-          data = oldData;
           // Save to new key immediately
           localStorage.setItem(STORAGE_KEY, oldData);
           // Optional: localStorage.removeItem('student-mate-data'); 
           // Keeping it for now for safety during transition
+          get().loadLocalData(); // Re-run with new key
+          return;
         }
       }
 
       if (data) {
-        const parsed = JSON.parse(data);
+        let parsed;
+        try {
+          parsed = JSON.parse(data);
+        } catch (e) {
+          console.error('Corrupted localStorage data, resetting...', e);
+          localStorage.removeItem(STORAGE_KEY);
+          set({ isLoading: false });
+          return;
+        }
+
         if (parsed && typeof parsed === 'object') {
           set({
             notes: Array.isArray(parsed.notes) ? parsed.notes : [],
@@ -205,6 +222,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
   setActiveSubTab: (subTab) => set({ activeSubTab: subTab }),
   setIsFocusActive: (active) => set({ isFocusActive: active }),
+  setIsUltraPerformanceMode: (active) => set({ isUltraPerformanceMode: active }),
   setConfirmModal: (modal) => set((state) => ({ 
     confirmModal: { ...state.confirmModal, ...modal, isOpen: true } 
   })),
@@ -316,14 +334,22 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   addFocusSession: async (session) => {
-    const { focusSessions } = get();
+    const { focusSessions, isUltraPerformanceMode } = get();
     const newSession = {
       ...session,
       id: generateId(),
       userId: 'local-user',
       createdAt: new Date().toISOString(),
     } as FocusSession;
-    set({ focusSessions: [newSession, ...focusSessions] });
+    
+    let updatedSessions = [newSession, ...focusSessions];
+    
+    // ULTRA PERFORMANCE MODE: Limit history to 50 sessions to save memory/storage
+    if (isUltraPerformanceMode && updatedSessions.length > 50) {
+      updatedSessions = updatedSessions.slice(0, 50);
+    }
+    
+    set({ focusSessions: updatedSessions });
     debouncedSaveToStorage(get());
   },
 
@@ -364,7 +390,7 @@ export const useStore = create<AppState>((set, get) => ({
       toast.error('Subject is required');
       return;
     }
-    const { studyLogs } = get();
+    const { studyLogs, isUltraPerformanceMode } = get();
     const newLog = {
       ...log,
       id: generateId(),
@@ -373,7 +399,15 @@ export const useStore = create<AppState>((set, get) => ({
       subject: log.subject.slice(0, 100),
       notes: log.notes?.slice(0, 2000) || '',
     } as StudyLog;
-    set({ studyLogs: [newLog, ...studyLogs] });
+    
+    let updatedLogs = [newLog, ...studyLogs];
+    
+    // ULTRA PERFORMANCE MODE: Limit history to 100 logs
+    if (isUltraPerformanceMode && updatedLogs.length > 100) {
+      updatedLogs = updatedLogs.slice(0, 100);
+    }
+    
+    set({ studyLogs: updatedLogs });
     debouncedSaveToStorage(get());
   },
   deleteStudyLog: async (id) => {
@@ -385,31 +419,31 @@ export const useStore = create<AppState>((set, get) => ({
   getSubjectStats: () => {
     const { tasks, studyLogs, exams } = get();
     const subjects = Array.from(new Set([
-      ...tasks.map(t => t.category).filter(Boolean),
-      ...studyLogs.map(l => l.subject).filter(Boolean),
-      ...exams.map(e => e.subject).filter(Boolean)
+      ...tasks.map(t => t?.category).filter(Boolean),
+      ...studyLogs.map(l => l?.subject).filter(Boolean),
+      ...exams.map(e => e?.subject).filter(Boolean)
     ])) as string[];
 
     return subjects.map(subject => {
-      const subjectTasks = tasks.filter(t => t.category === subject);
-      const subjectLogs = studyLogs.filter(l => l.subject === subject);
-      const subjectExams = exams.filter(e => e.subject === subject);
+      const subjectTasks = tasks.filter(t => t?.category === subject);
+      const subjectLogs = studyLogs.filter(l => l?.subject === subject);
+      const subjectExams = exams.filter(e => e?.subject === subject);
 
-      const totalStudyTime = subjectLogs.reduce((acc, l) => acc + (Number(l.duration) || 0), 0);
+      const totalStudyTime = subjectLogs.reduce((acc, l) => acc + (Number(l?.duration) || 0), 0);
       const taskCompletionRate = subjectTasks.length > 0 
-        ? (subjectTasks.filter(t => t.isCompleted).length / subjectTasks.length) * 100 
+        ? (subjectTasks.filter(t => t?.isCompleted).length / subjectTasks.length) * 100 
         : 100;
       
       const confidence = Math.min(100, (totalStudyTime / 300) * 50 + (taskCompletionRate * 0.5));
       
       const upcomingExam = subjectExams.find(e => {
-        if (!isValidDate(e.dateTime)) return false;
+        if (!e?.dateTime || !isValidDate(e.dateTime)) return false;
         const examDate = new Date(e.dateTime);
         return examDate > new Date();
       });
       
       const daysToExam = upcomingExam 
-        ? Math.max(1, (new Date(upcomingExam.dateTime).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        ? Math.max(1, (parseDate(upcomingExam.dateTime).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
         : 30;
       
       const priorityScore = Math.min(100, (100 - confidence) * 0.7 + (30 / daysToExam) * 30);

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { format, formatDistanceToNow, isPast, differenceInHours, differenceInDays, differenceInCalendarDays } from 'date-fns';
 import { Exam, ExamType, Priority } from '../types';
-import { cn } from '../lib/utils';
+import { cn, isValidDate } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { useDevice } from '../hooks/useDevice';
 
@@ -215,6 +215,7 @@ export default function Exams() {
                     <h4 className="font-bold text-stone-700 dark:text-stone-300">{exam.subject}</h4>
                     <p className="text-xs text-stone-400">
                       {(() => {
+                        if (!exam?.dateTime || !isValidDate(exam.dateTime)) return 'Invalid Date';
                         const date = new Date(exam.dateTime);
                         return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid Date';
                       })()}
@@ -506,6 +507,7 @@ const ExamCard = React.memo(({ exam, onEdit, onDelete }: { exam: Exam; onEdit: (
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">
               {(() => {
+                if (!exam?.dateTime || !isValidDate(exam.dateTime)) return 'Invalid Date';
                 const date = new Date(exam.dateTime);
                 return !isNaN(date.getTime()) ? format(date, 'EEEE, MMM d') : 'Invalid Date';
               })()}
@@ -515,6 +517,7 @@ const ExamCard = React.memo(({ exam, onEdit, onDelete }: { exam: Exam; onEdit: (
             <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">
               {(() => {
+                if (!exam?.dateTime || !isValidDate(exam.dateTime)) return '--:--';
                 const date = new Date(exam.dateTime);
                 return !isNaN(date.getTime()) ? format(date, 'p') : '--:--';
               })()}

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
-import { cn, generateId } from '../lib/utils';
+import { cn, generateId, isValidDate } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { NoteSkeleton } from './Skeleton';
 import { Note } from '../types';
@@ -48,15 +48,15 @@ const NoteCard = memo(({
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <div className="h-1 w-4 rounded-full bg-stone-200 dark:bg-stone-800 transition-colors group-hover:bg-stone-900 dark:group-hover:bg-white" />
-            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-400">
-              {format(new Date(note.updatedAt), 'MMM d, yyyy')}
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-stone-500 dark:text-stone-400">
+              {isValidDate(note.updatedAt) ? format(new Date(note.updatedAt), 'MMM d, yyyy') : 'TBD'}
             </span>
           </div>
           <h3 className="font-display text-xl font-bold tracking-tight text-stone-900 dark:text-white line-clamp-1">
             {note.title || 'Untitled Note'}
           </h3>
           {viewMode === 'grid' && (
-            <p className="text-sm leading-relaxed text-stone-500 dark:text-stone-400 line-clamp-3 font-serif">
+            <p className="text-sm leading-relaxed text-stone-600 dark:text-stone-300 line-clamp-3 font-serif">
               {note.content || 'No content yet...'}
             </p>
           )}
@@ -71,7 +71,7 @@ const NoteCard = memo(({
               }}
               className={cn(
                 "rounded-full p-2 transition-all",
-                note.isPinned ? "bg-amber-50 text-amber-600 dark:bg-amber-900/20" : "text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+                note.isPinned ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30" : "text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
               )}
             >
               <Pin className={cn("h-4 w-4", note.isPinned && "fill-current")} />
@@ -81,14 +81,14 @@ const NoteCard = memo(({
                 e.stopPropagation();
                 onDelete(note.id);
               }}
-              className="rounded-full p-2 text-stone-300 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20"
+              className="rounded-full p-2 text-stone-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20"
             >
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-300">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-500 dark:text-stone-400">
             <FileText className="h-3 w-3" />
-            <span>{note.content.split(/\s+/).filter(Boolean).length} words</span>
+            <span>{(note.content || '').split(/\s+/).filter(Boolean).length} words</span>
           </div>
         </div>
       </div>
@@ -268,7 +268,7 @@ export default function Notebook() {
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">
                   <Clock className="h-3 w-3" />
                   <span>
-                    {format(new Date(currentNote.updatedAt), 'MMMM d, yyyy')}
+                    {isValidDate(currentNote.updatedAt) ? format(new Date(currentNote.updatedAt), 'MMMM d, yyyy') : 'TBD'}
                   </span>
                 </div>
               </div>

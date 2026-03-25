@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import { Bell, Clock, Plus, Trash2, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
-import { cn } from '../lib/utils';
+import { cn, isValidDate } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { useDevice } from '../hooks/useDevice';
 
@@ -140,6 +140,7 @@ export default function Reminders() {
                   <Calendar className="h-3 w-3 text-brand-500" />
                   <span>
                     {(() => {
+                      if (!reminder?.dateTime || !isValidDate(reminder.dateTime)) return 'Invalid Date';
                       const date = new Date(reminder.dateTime);
                       return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid Date';
                     })()}
@@ -149,6 +150,7 @@ export default function Reminders() {
                   <Clock className="h-3 w-3 text-brand-500" />
                   <span>
                     {(() => {
+                      if (!reminder?.dateTime || !isValidDate(reminder.dateTime)) return '--:--';
                       const date = new Date(reminder.dateTime);
                       return !isNaN(date.getTime()) ? format(date, 'p') : '--:--';
                     })()}

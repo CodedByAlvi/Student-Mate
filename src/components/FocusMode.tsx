@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useStore } from '../store/useStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, RotateCcw, Brain, BarChart3 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, isValidDate } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ACCENT_COLORS, AccentColor } from '../constants';
@@ -50,6 +50,8 @@ export default function FocusMode() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isActive]);
 
+  const isUltraPerformanceMode = useStore(state => state.isUltraPerformanceMode);
+
   const updateTimer = useCallback(() => {
     if (isActive && startTimeRef.current !== null) {
       const now = Date.now();
@@ -65,24 +67,41 @@ export default function FocusMode() {
       if (nextTime === 0) {
         handleTimerComplete();
       } else {
-        timerRef.current = window.requestAnimationFrame(updateTimer);
+        if (isUltraPerformanceMode) {
+          // Use setTimeout for lower frequency updates in performance mode
+          timerRef.current = window.setTimeout(updateTimer, 500) as any;
+        } else {
+          timerRef.current = window.requestAnimationFrame(updateTimer);
+        }
       }
     }
-  }, [isActive]);
+  }, [isActive, isUltraPerformanceMode]);
 
   useEffect(() => {
     if (isActive) {
       startTimeRef.current = Date.now();
       baseTimeRef.current = timeLeft;
-      timerRef.current = window.requestAnimationFrame(updateTimer);
+      if (isUltraPerformanceMode) {
+        timerRef.current = window.setTimeout(updateTimer, 500) as any;
+      } else {
+        timerRef.current = window.requestAnimationFrame(updateTimer);
+      }
     } else {
-      if (timerRef.current) window.cancelAnimationFrame(timerRef.current);
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current as any);
+        cancelAnimationFrame(timerRef.current as any);
+        timerRef.current = null;
+      }
       startTimeRef.current = null;
     }
     return () => {
-      if (timerRef.current) window.cancelAnimationFrame(timerRef.current);
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current as any);
+        cancelAnimationFrame(timerRef.current as any);
+        timerRef.current = null;
+      }
     };
-  }, [isActive, updateTimer]);
+  }, [isActive, updateTimer, isUltraPerformanceMode]);
 
   const handleTimerComplete = async () => {
     setIsActive(false);
@@ -165,7 +184,7 @@ export default function FocusMode() {
 
   // Stats calculation
   const todaySessions = useMemo(() => focusSessions.filter(s => 
-    new Date(s.createdAt).toDateString() === new Date().toDateString() && s.type === 'pomodoro'
+    s && s.createdAt && isValidDate(s.createdAt) && new Date(s.createdAt).toDateString() === new Date().toDateString() && s.type === 'pomodoro'
   ), [focusSessions]);
 
   const totalFocusMinutes = useMemo(() => todaySessions.reduce((acc, s) => acc + s.duration, 0), [todaySessions]);
@@ -349,7 +368,7 @@ export default function FocusMode() {
                     {minutes}:{seconds.toString().padStart(2, '0')}
                   </span>
                   <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400">
-                    {mode === 'pomodoro' || mode === 'deep-focus' ? 'Focusing' : 'Resting'}
+                    {['pomodoro', 'deep-focus', 'quick-focus', 'power-focus', 'ultra-focus'].includes(mode) ? 'Focusing' : 'Resting'}
                   </p>
                 </div>
               </div>

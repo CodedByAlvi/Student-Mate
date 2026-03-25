@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, CheckCircle2, Brain, Target, TrendingUp, ArrowRight, AlarmClock, Calendar, Clock } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, differenceInDays, differenceInCalendarDays } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
-import { cn } from '../lib/utils';
+import { cn, isValidDate } from '../lib/utils';
 import { ACCENT_COLORS, AccentColor } from '../constants';
 import { useDevice } from '../hooks/useDevice';
 
@@ -31,6 +31,7 @@ export default function Home() {
   
   // Focus Score Calculation (0-100)
   const todaySessions = useMemo(() => focusSessions.filter(s => {
+    if (!s?.createdAt || !isValidDate(s.createdAt)) return false;
     const date = new Date(s.createdAt);
     return !isNaN(date.getTime()) && date.toDateString() === new Date().toDateString();
   }), [focusSessions]);
@@ -47,13 +48,14 @@ export default function Home() {
 
     // Pre-filter sessions for the current week to avoid O(days * sessions)
     const weekSessions = focusSessions.filter(s => {
+      if (!s?.createdAt || !isValidDate(s.createdAt)) return false;
       const date = new Date(s.createdAt);
       return !isNaN(date.getTime()) && date >= weekStart && date <= weekEnd;
     });
 
     return days.map(day => {
-      const daySessions = weekSessions.filter(s => isSameDay(new Date(s.createdAt), day));
-      const duration = daySessions.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
+      const daySessions = weekSessions.filter(s => s?.createdAt && isSameDay(new Date(s.createdAt), day));
+      const duration = daySessions.reduce((acc, s) => acc + (Number(s?.duration) || 0), 0);
       return {
         name: format(day, 'EEE'),
         minutes: duration,
@@ -63,17 +65,20 @@ export default function Home() {
   }, [focusSessions]);
 
   const stats = useMemo(() => [
-    { label: 'Notes', count: notes.length, icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', tab: 'notebook' },
-    { label: 'To-Do', count: pendingTasks.length, icon: CheckCircle2, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/20', tab: 'tasks' },
-    { label: 'Focus', count: focusScore, icon: Brain, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20', tab: 'focus' },
+    { label: 'Notes', count: notes.length, icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/40', tab: 'notebook' },
+    { label: 'To-Do', count: pendingTasks.length, icon: CheckCircle2, color: 'text-brand-600', bg: 'bg-brand-100 dark:bg-brand-900/40', tab: 'tasks' },
+    { label: 'Focus', count: focusScore, icon: Brain, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/40', tab: 'focus' },
   ], [notes.length, pendingTasks.length, focusScore]);
 
   const upcomingExams = useMemo(() => exams
     .filter(e => {
+      if (!e?.dateTime || !isValidDate(e.dateTime)) return false;
       const date = new Date(e.dateTime);
       return !isNaN(date.getTime()) && date > new Date();
     })
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()), [exams]);
+
+  const isUltraPerformanceMode = useStore(state => state.isUltraPerformanceMode);
 
   useEffect(() => {
     if (upcomingExams.length <= 1) {
@@ -81,12 +86,15 @@ export default function Home() {
       return;
     }
     
+    // ULTRA PERFORMANCE MODE: Slower transitions to save battery/CPU
+    const intervalTime = isUltraPerformanceMode ? 10000 : 4000;
+    
     const interval = setInterval(() => {
       setCurrentExamIndex((prev) => (prev + 1) % upcomingExams.length);
-    }, 4000);
+    }, intervalTime);
 
     return () => clearInterval(interval);
-  }, [upcomingExams.length]);
+  }, [upcomingExams.length, isUltraPerformanceMode]);
 
   const MOTIVATIONAL_QUOTES = [
     "The secret of getting ahead is getting started.",

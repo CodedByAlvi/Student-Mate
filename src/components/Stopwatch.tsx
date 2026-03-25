@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { useStore } from '../store/useStore';
 import { useDevice } from '../hooks/useDevice';
 
 export default function Stopwatch() {
@@ -14,37 +15,59 @@ export default function Stopwatch() {
   const accumulatedTimeRef = useRef<number>(0);
   const requestRef = useRef<number | null>(null);
 
+  const isUltraPerformanceMode = useStore(state => state.isUltraPerformanceMode);
+
   const updateStopwatch = useCallback(() => {
     if (isRunning && startTimeRef.current !== null) {
       const now = Date.now();
       const currentElapsed = now - startTimeRef.current;
       const nextTime = accumulatedTimeRef.current + currentElapsed;
       
-      // Only update if the centisecond has actually changed to save renders
+      // ULTRA PERFORMANCE MODE: Only update if the second has changed to save renders
+      // Otherwise, update if the centisecond has changed
+      const threshold = isUltraPerformanceMode ? 1000 : 10;
+      
       setTime(prev => {
-        if (Math.floor(prev / 10) !== Math.floor(nextTime / 10)) return nextTime;
+        if (Math.floor(prev / threshold) !== Math.floor(nextTime / threshold)) return nextTime;
         return prev;
       });
       
-      requestRef.current = requestAnimationFrame(updateStopwatch);
+      if (isUltraPerformanceMode) {
+        // Use setTimeout for lower frequency updates in performance mode
+        requestRef.current = window.setTimeout(updateStopwatch, 100) as any;
+      } else {
+        requestRef.current = requestAnimationFrame(updateStopwatch);
+      }
     }
-  }, [isRunning]);
+  }, [isRunning, isUltraPerformanceMode]);
 
   useEffect(() => {
     if (isRunning) {
       startTimeRef.current = Date.now();
-      requestRef.current = requestAnimationFrame(updateStopwatch);
+      if (isUltraPerformanceMode) {
+        requestRef.current = window.setTimeout(updateStopwatch, 100) as any;
+      } else {
+        requestRef.current = requestAnimationFrame(updateStopwatch);
+      }
     } else {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (requestRef.current !== null) {
+        clearTimeout(requestRef.current as any);
+        cancelAnimationFrame(requestRef.current as any);
+        requestRef.current = null;
+      }
       if (startTimeRef.current !== null) {
         accumulatedTimeRef.current += Date.now() - startTimeRef.current;
       }
       startTimeRef.current = null;
     }
     return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (requestRef.current !== null) {
+        clearTimeout(requestRef.current as any);
+        cancelAnimationFrame(requestRef.current as any);
+        requestRef.current = null;
+      }
     };
-  }, [isRunning, updateStopwatch]);
+  }, [isRunning, updateStopwatch, isUltraPerformanceMode]);
 
   const formatTime = (ms: number) => {
     const minutes = Math.floor(ms / 60000);

@@ -7,6 +7,70 @@ import toast from 'react-hot-toast';
 import { Priority } from '../types';
 import { useDevice } from '../hooks/useDevice';
 
+const TaskItem = React.memo(({ 
+  task, 
+  onToggle, 
+  onRemove, 
+  priorityColors 
+}: { 
+  task: any; 
+  onToggle: (id: string, completed: boolean) => void; 
+  onRemove: (id: string) => void;
+  priorityColors: Record<string, string>;
+}) => {
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className={cn(
+        "group flex items-center gap-5 rounded-[2rem] border border-stone-200 bg-white p-5 transition-all hover:shadow-2xl hover:border-brand-200 dark:border-stone-800 dark:bg-stone-900/40 dark:hover:border-brand-800",
+        task.isCompleted && "opacity-80"
+      )}
+    >
+      <button 
+        onClick={() => onToggle(task.id, !task.isCompleted)}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-500",
+          task.isCompleted ? "bg-brand-600 text-white shadow-lg shadow-brand-600/20" : "bg-stone-100 text-stone-400 hover:bg-stone-200 dark:bg-stone-800"
+        )}
+      >
+        {task.isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+      </button>
+      
+      <div className="flex-1 space-y-1.5">
+        <h3 className={cn(
+          "text-lg font-bold tracking-tight transition-all duration-500",
+          task.isCompleted ? "text-stone-500 line-through decoration-brand-500 decoration-2" : "text-stone-900 dark:text-white"
+        )}>
+          {task.title}
+        </h3>
+        <div className="flex items-center gap-3">
+          <span className={cn(
+            "rounded-lg px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest",
+            priorityColors[task.priority]
+          )}>
+            {task.priority}
+          </span>
+          {task.category && (
+            <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400">
+              {task.category}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <button 
+        onClick={() => onRemove(task.id)}
+        className="rounded-xl p-3 text-stone-300 opacity-0 transition-all hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100 dark:hover:bg-rose-900/20"
+      >
+        <Trash2 className="h-5 w-5" />
+      </button>
+    </motion.div>
+  );
+});
+
 export default function ToDo() {
   const tasks = useStore(state => state.tasks);
   const addTask = useStore(state => state.addTask);
@@ -140,53 +204,13 @@ export default function ToDo() {
       )}>
         <AnimatePresence mode="popLayout">
           {filteredTasks.map((task) => (
-            <motion.div 
-              layout
+            <TaskItem 
               key={task.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className={cn(
-                "group flex items-center gap-5 rounded-[2rem] border border-stone-200 bg-white p-5 transition-all hover:shadow-2xl hover:border-brand-200 dark:border-stone-800 dark:bg-stone-900/40 dark:hover:border-brand-800",
-                task.isCompleted && "opacity-60 grayscale-[0.5]"
-              )}
-            >
-              <button 
-                onClick={() => toggleTask(task.id, !task.isCompleted)}
-                className={cn(
-                  "transition-all active:scale-90 flex-shrink-0",
-                  task.isCompleted ? "text-brand-600" : "text-stone-300 hover:text-stone-500"
-                )}
-              >
-                {task.isCompleted ? <CheckCircle2 className="h-8 w-8" /> : <Circle className="h-8 w-8" />}
-              </button>
-              
-              <div className="flex-1 min-w-0 space-y-1.5">
-                <h4 className={cn(
-                  "truncate text-lg font-bold tracking-tight transition-all",
-                  task.isCompleted ? "line-through text-stone-400" : "text-stone-900 dark:text-stone-50"
-                )}>
-                  {task.title}
-                </h4>
-                <div className="flex items-center gap-3">
-                  <span className={cn(
-                    "rounded-lg px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest border",
-                    task.priority === 'high' ? "bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-900/20 dark:border-rose-900/30" :
-                    task.priority === 'medium' ? "bg-amber-50 border-amber-100 text-amber-600 dark:bg-amber-900/20 dark:border-amber-900/30" :
-                    "bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-900/20 dark:border-blue-900/30"
-                  )}>
-                    {task.priority} Priority
-                  </span>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => removeTask(task.id)}
-                className="rounded-full p-2.5 text-stone-300 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
-            </motion.div>
+              task={task}
+              onToggle={toggleTask}
+              onRemove={removeTask}
+              priorityColors={priorityColors}
+            />
           ))}
         </AnimatePresence>
         {filteredTasks.length === 0 && (

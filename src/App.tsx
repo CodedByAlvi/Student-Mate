@@ -3,22 +3,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { useStore } from './store/useStore';
 import { cn } from './lib/utils';
 import Layout from './components/Layout';
-import Home from './components/Home';
-import Notebook from './components/Notebook';
-import Stopwatch from './components/Stopwatch';
-import FocusMode from './components/FocusMode';
-import Exams from './components/Exams';
-import Tasks from './components/Tasks';
-import Settings from './components/Settings';
 import { motion, AnimatePresence } from 'motion/react';
 import { ACCENT_COLORS, AccentColor } from './constants';
+import { usePerformance } from './hooks/usePerformance';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import CustomToaster from './components/CustomToaster';
+
+// Lazy load components for Phase 3: Smart Resource Loading
+const Home = lazy(() => import('./components/Home'));
+const Notebook = lazy(() => import('./components/Notebook'));
+const Stopwatch = lazy(() => import('./components/Stopwatch'));
+const FocusMode = lazy(() => import('./components/FocusMode'));
+const Exams = lazy(() => import('./components/Exams'));
+const Tasks = lazy(() => import('./components/Tasks'));
+const Settings = lazy(() => import('./components/Settings'));
 
 export default function App() {
   const user = useStore(state => state.user);
@@ -26,6 +29,33 @@ export default function App() {
   const setActiveTab = useStore(state => state.setActiveTab);
   const loadLocalData = useStore(state => state.loadLocalData);
   const forceSave = useStore(state => state.forceSave);
+  const setIsUltraPerformanceMode = useStore(state => state.setIsUltraPerformanceMode);
+  
+  const { isUltraPerformanceMode: perfMode } = usePerformance();
+
+  // Phase 1: Activate Ultra Performance Mode in the store
+  useEffect(() => {
+    setIsUltraPerformanceMode(perfMode);
+  }, [perfMode, setIsUltraPerformanceMode]);
+
+  // Monitor memory pressure if available
+  useEffect(() => {
+    if (!('performance' in window) || !('memory' in (window.performance as any))) return;
+
+    const checkMemory = () => {
+      const memory = (window.performance as any).memory;
+      const usedPercent = (memory.usedJSHeapSize / memory.jsHeapLimit) * 100;
+      
+      // If using more than 80% of heap, force performance mode
+      if (usedPercent > 80) {
+        setIsUltraPerformanceMode(true);
+        console.warn('High memory pressure detected, activating Ultra Performance Mode');
+      }
+    };
+
+    const interval = setInterval(checkMemory, 10000);
+    return () => clearInterval(interval);
+  }, [setIsUltraPerformanceMode]);
 
   // Load local data on mount
   useEffect(() => {
@@ -66,16 +96,26 @@ export default function App() {
   }, [user?.accentColor]);
 
   const renderContent = () => {
-    switch (activeTab) {
-      case 'home': return <Home />;
-      case 'notebook': return <Notebook />;
-      case 'tasks': return <Tasks />;
-      case 'exams': return <Exams />;
-      case 'stopwatch': return <Stopwatch />;
-      case 'focus': return <FocusMode />;
-      case 'settings': return <Settings />;
-      default: return <Home />;
-    }
+    return (
+      <Suspense fallback={
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
+        </div>
+      }>
+        {(() => {
+          switch (activeTab) {
+            case 'home': return <Home />;
+            case 'notebook': return <Notebook />;
+            case 'tasks': return <Tasks />;
+            case 'exams': return <Exams />;
+            case 'stopwatch': return <Stopwatch />;
+            case 'focus': return <FocusMode />;
+            case 'settings': return <Settings />;
+            default: return <Home />;
+          }
+        })()}
+      </Suspense>
+    );
   };
 
   const fontClass = 
@@ -87,7 +127,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className={cn("min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-50", fontClass)}>
+      <div className={cn("min-h-screen bg-white text-stone-900 dark:bg-black dark:text-stone-50", fontClass)}>
         <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
           <AnimatePresence mode="wait">
             <motion.div
